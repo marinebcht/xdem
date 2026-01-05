@@ -119,19 +119,15 @@ class Workflows(ABC):
 
         :return: None
         """
-
+        savefig_fname = self.outputs_folder / "plots" / f"{filename}.png"
         if mask_path is None:
-            dem.plot(**kwargs)
-            plt.title(title)
-            plt.savefig(self.outputs_folder / "plots" / f"{filename}.png", dpi=300)
+            dem.plot(**kwargs, title=title)
             plt.close()
         else:
             mask = gu.Vector(mask_path)
             mask = mask.crop(dem)
-            dem.plot(**kwargs)
-            mask.plot(dem, ec="k", fc="none")
-            plt.title(title)
-            plt.savefig(self.outputs_folder / "plots" / f"{filename}.png", dpi=300)
+            dem.plot(**kwargs, title=title)
+            mask.plot(dem, ec="k", fc="none", savefig_fname=savefig_fname)
             plt.close()
 
     def floats_process(
