@@ -22,6 +22,7 @@ Test DiffAnalysis class
 from pathlib import Path
 
 import geoutils as gu
+import pandas as pd
 import pytest
 
 import xdem
@@ -238,7 +239,10 @@ def test_run_without_coreg(get_accuracy_inputs_config, tmp_path, level):
         "to_be_aligned_elev_stats.csv",
     ]
 
-    raster_files = ["diff_elev.tif"]
+    raster_files = [
+        "to_be_aligned_elev_reprojected.tif",
+        "reference_elev_reprojected.tif",
+    ]
 
     if level == 1:
         for file in csv_files:
@@ -250,7 +254,46 @@ def test_run_without_coreg(get_accuracy_inputs_config, tmp_path, level):
         for file in csv_files:
             assert (Path(tmp_path) / "tables" / file).exists()
         for file in raster_files:
-            assert not (Path(tmp_path) / "rasters" / file).exists()
+            assert (Path(tmp_path) / "rasters" / file).exists()
+
+
+@pytest.mark.parametrize(
+    "process",
+    [True, False],
+)
+def test_run_prepa_data(get_accuracy_inputs_config, tmp_path, process):
+    """
+    Test run function
+    """
+
+    user_config = get_accuracy_inputs_config
+    user_config["outputs"] = {"path": str(tmp_path), "level": 2}
+    user_config["coregistration"] = {"process": process}
+
+    dem = xdem.DEM(user_config["inputs"]["reference_elev"]["path_to_elev"])
+    nrows, ncols = dem.shape
+    dem_crop = dem.icrop((0, 0, ncols - 100, nrows - 100))
+    dem_crop.to_file(Path(tmp_path / "reference_elev_crop.tif"))
+    user_config["inputs"]["reference_elev"]["path_to_elev"] = Path(tmp_path / "reference_elev_crop.tif").as_posix()
+    workflows = Accuracy(user_config)
+    workflows.run()
+
+    raster_files = [
+        "to_be_aligned_elev_reprojected.tif",
+        "reference_elev_reprojected.tif",
+    ]
+
+    for file in raster_files:
+        dem_test = xdem.DEM(Path(tmp_path) / "rasters" / file)
+        assert dem_crop.shape == dem_test.shape
+
+    csv_files = [
+        "reference_elev_stats.csv",
+        "to_be_aligned_elev_stats.csv",
+    ]
+    for file in csv_files:
+        stats = pd.read_csv(Path(tmp_path / "tables" / file).as_posix())
+        assert stats["Total count"].values[0] == dem_crop.shape[0] * dem_crop.shape[1]
 
 
 def test_create_html(tmp_path, get_accuracy_object_with_run):
