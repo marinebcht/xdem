@@ -156,6 +156,20 @@ These categories and detailed parameter values are further detailed below:
               For transforming between vertical CRS with ``from_vcrs``/``to_vcrs`` please refer to :doc:`vertical_ref`.
               The ``downsample`` parameter allows the user to resample the elevation by a round factor. The default value of 1 means no downsampling.
 
+        .. tab:: ``sampling_grid``
+
+            .. csv-table:: Destination elevation for reprojection ``sampling_grid``
+               :header: "Value", "Default", "Description"
+               :widths: 30, 10, 60
+
+               "``reference_elev``", "X", "``to_be_aligned_elev`` will be reproject to ``reference_elev``"
+               "``to_be_aligned_elev``", " " ,"``reference_elev`` will be reproject to ``to_be_aligned_elev``"
+               "None", " ", "No reprojection with coregistration process or not"
+
+            .. note::
+               If no reprojection is chosen, the workflow can raises an error if the two inputs have not the same shape,
+               transform and CRS.
+
       .. code-block:: yaml
 
         inputs:
@@ -167,6 +181,7 @@ These categories and detailed parameter values are further detailed below:
             to_be_aligned_elev:
                 path_to_elev: "path_to/to_be_aligned_elev.tif"
                 path_to_mask: "path_to/mask.tif"
+            sampling_grid: "reference_elev"
 
    .. tab:: ``coregistration``
 
@@ -191,7 +206,6 @@ These categories and detailed parameter values are further detailed below:
 
            "``step_[one | two | three]``", "``method``", "Name of coregistration method", "str", "NuthKaab", "Every available coregistration method", "No"
            "", "``extra_information``", "Extra parameters fitting with the method", "dict", "", "", "No"
-           "``sampling_grid``", "", "Destination elevation for reprojection", "str", "reference_elev", "reference_elev or to_be_aligned_elev", "No"
            "``process``", "", "Activate the coregistration", "bool", "True", "True or False", "No"
 
         .. note::
@@ -205,7 +219,6 @@ These categories and detailed parameter values are further detailed below:
             extra_information : {"max_iterations": 10}
           step_two:
             method: "DHMinimize"
-          sampling_grid: "reference_elev"
           process: True
 
       other example :
@@ -215,7 +228,6 @@ These categories and detailed parameter values are further detailed below:
         coregistration:
           step_one:
             method: "VerticalShift"
-          sampling_grid: "reference_elev"
           process: True
 
    .. tab:: ``statistics``
