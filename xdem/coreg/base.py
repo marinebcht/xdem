@@ -313,6 +313,7 @@ def _preprocess_coreg_fit_point_point(
     return ref_elev, tba_elev
 
 
+@profiler.profile("xdem.coreg.base._preprocess_coreg_fit", memprof=True)  # type: ignore
 def _preprocess_coreg_fit(
     reference_elev: NDArrayf | MArrayf | RasterType | gpd.GeoDataFrame | PointCloudType,
     to_be_aligned_elev: NDArrayf | MArrayf | RasterType | gpd.GeoDataFrame | PointCloudType,
@@ -2247,6 +2248,7 @@ class Coreg:
 
         return sub_ref, sub_tba, sub_bias_vars
 
+    @profiler.profile("xdem.coreg.base.fit", memprof=True)  # type: ignore
     def fit(
         self: CoregType,
         reference_elev: NDArrayf | MArrayf | RasterType | gpd.GeoDataFrame | PointCloudType,
@@ -2406,6 +2408,7 @@ class Coreg:
         **kwargs: Any,
     ) -> RasterType | gpd.GeoDataFrame | PointCloudType: ...
 
+    @profiler.profile("xdem.coreg.base.apply", memprof=True)  # type: ignore
     def apply(
         self,
         elev: MArrayf | NDArrayf | RasterType | gpd.GeoDataFrame | PointCloudType,
@@ -2609,6 +2612,7 @@ class Coreg:
 
         return aligned_dem
 
+    @profiler.profile("xdem.coreg.base._fit_func", memprof=True)  # type: ignore
     def _fit_func(
         self,
         **kwargs: Any,
