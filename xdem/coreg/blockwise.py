@@ -247,7 +247,6 @@ class BlockwiseCoreg:
         :param max_iterations: Maximum number of iterations to run the RANSAC algorithm.
         :return: Estimated transformation coefficients (a, b, c) such as shift = a * x + b * y + c.
         """
-
         import_optional("sklearn", package_name="scikit-learn")
         from sklearn.linear_model import LinearRegression, RANSACRegressor
 
@@ -268,6 +267,7 @@ class BlockwiseCoreg:
             raise ValueError("No valid points after removing NaNs.")
 
         # 1D: Variation on only 1 dimension
+
         if np.allclose(points[:, 1], points[0, 1]):
             # 1D variation on x
             a, c = np.polyfit(points[:, 0], points[:, 2], 1)
@@ -288,7 +288,6 @@ class BlockwiseCoreg:
             ransac.fit(X, y)
             a, b = ransac.estimator_.coef_
             c = ransac.estimator_.intercept_
-
         return a, b, c
 
     @staticmethod
@@ -311,6 +310,7 @@ class BlockwiseCoreg:
         :return: Transformed DEM raster with the applied coefficients.
         """
         # To pointcloud
+        print("[_wrapper_apply_epc] tile bound", tba_dem_tile.bounds, "(", tba_dem_tile.shape, ")")
         epc = tba_dem_tile.to_pointcloud(data_column_name="z").ds
         # Unpack coefficients
         a_x, b_x, d_x = coeff_x
@@ -336,7 +336,6 @@ class BlockwiseCoreg:
             geometry=gpd.points_from_xy(x_new, y_new, crs=epc.crs),
             data={"z": z_new if apply_z_correction else z},
         )
-
         with warnings.catch_warnings():
             # CRS mismatch between the CRS of left geometries and the CRS of right geometries.
             warnings.filterwarnings("ignore", category=UserWarning)
@@ -378,6 +377,7 @@ class BlockwiseCoreg:
             threshold_ransac,
             max_iterations_ransac,
         )
+
         if self.apply_z_correction:
             coeff_z = self._ransac(
                 self.x_coords,  # type: ignore
@@ -394,7 +394,8 @@ class BlockwiseCoreg:
 
         # be careful with depth value if Out of Memory
         depth = max(np.abs(self.shifts_x).max(), np.abs(self.shifts_y).max())
-
+        print("Calcul depth max(", np.abs(self.shifts_x).max(), ",", np.abs(self.shifts_y).max(), ")")
+        print("=> depth", math.ceil(depth))
         aligned_dem = map_overlap_multiproc_save(
             self._wrapper_apply_epc,
             self.reproject_dem,
