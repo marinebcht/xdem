@@ -45,7 +45,8 @@ from geoutils.raster.tiling import compute_tiling
 from xdem._misc import import_optional
 from xdem._typing import MArrayf, NDArrayb, NDArrayf
 from xdem.coreg.affine import NuthKaab
-from xdem.coreg.base import Coreg, CoregPipeline
+from xdem.coreg.base import Coreg, CoregPipeline, apply_matrix
+
 
 
 class BlockwiseCoreg:
@@ -414,9 +415,9 @@ class BlockwiseCoreg:
                 fun = np.median
 
             self.meta["outputs"] = {
-                "shift_x": fun(self.coeff_x),
-                "shift_y": fun(self.coeff_y),
-                "shift_z": fun(self.coeff_z),
+                "shift_x": fun(self.shifts_x),
+                "shift_y": fun(self.shifts_y),
+                "shift_z": fun(self.shifts_z),
             }
 
             matrix = np.array(
@@ -427,6 +428,6 @@ class BlockwiseCoreg:
                     [0, 0, 0, 1],
                 ]
             )
-            import xdem
-            aligned_dem = xdem.coreg.apply_matrix(self.reproject_dem, matrix)
+
+            aligned_dem = apply_matrix(self.reproject_dem, matrix)
         return aligned_dem
