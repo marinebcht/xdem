@@ -352,6 +352,7 @@ class BlockwiseCoreg:
 
     def apply(
         self,
+        method: str = "ransac",
         threshold_ransac: float = 0.01,
         max_iterations_ransac: int = 2000,
     ) -> RasterType:
@@ -362,49 +363,70 @@ class BlockwiseCoreg:
         :param max_iterations_ransac: Maximum number of RANSAC iterations to perform.
         :return: The transformed elevation raster.
         """
-
-        coeff_x = self._ransac(
-            self.x_coords,  # type: ignore
-            self.y_coords,  # type: ignore
-            self.shifts_x,  # type: ignore
-            threshold_ransac,
-            max_iterations_ransac,
-        )
-        coeff_y = self._ransac(
-            self.x_coords,  # type: ignore
-            self.y_coords,  # type: ignore
-            self.shifts_y,  # type: ignore
-            threshold_ransac,
-            max_iterations_ransac,
-        )
-
-        if self.apply_z_correction:
-            coeff_z = self._ransac(
+        if method == "ransac":
+            coeff_x = self._ransac(
                 self.x_coords,  # type: ignore
                 self.y_coords,  # type: ignore
-                self.shifts_z,  # type: ignore
+                self.shifts_x,  # type: ignore
                 threshold_ransac,
                 max_iterations_ransac,
             )
+            coeff_y = self._ransac(
+                self.x_coords,  # type: ignore
+                self.y_coords,  # type: ignore
+                self.shifts_y,  # type: ignore
+                threshold_ransac,
+                max_iterations_ransac,
+            )
+
+            if self.apply_z_correction:
+                coeff_z = self._ransac(
+                    self.x_coords,  # type: ignore
+                    self.y_coords,  # type: ignore
+                    self.shifts_z,  # type: ignore
+                    threshold_ransac,
+                    max_iterations_ransac,
+                )
+            else:
+                coeff_z = (0, 0, 0)
+
+            self.mp_config.outfile = self.output_path_aligned
+            self.mp_config.chunk_size = self.block_size_apply
+
+            # be careful with depth value if Out of Memory
+            depth = max(np.abs(self.shifts_x).max(), np.abs(self.shifts_y).max())
+            print("Calcul depth max(", np.abs(self.shifts_x).max(), ",", np.abs(self.shifts_y).max(), ")")
+            print("=> depth", math.ceil(depth))
+            aligned_dem = map_overlap_multiproc_save(
+                self._wrapper_apply_epc,
+                self.reproject_dem,
+                self.mp_config,
+                coeff_x,
+                coeff_y,
+                coeff_z,
+                self.apply_z_correction,
+                depth=math.ceil(depth),
+            )
         else:
-            coeff_z = (0, 0, 0)
+            if method == "mean":
+                fun = np.mean
+            else:
+                fun = np.median
 
-        self.mp_config.outfile = self.output_path_aligned
-        self.mp_config.chunk_size = self.block_size_apply
+            self.meta["outputs"] = {
+                "shift_x": fun(self.coeff_x),
+                "shift_y": fun(self.coeff_y),
+                "shift_z": fun(self.coeff_z),
+            }
 
-        # be careful with depth value if Out of Memory
-        depth = max(np.abs(self.shifts_x).max(), np.abs(self.shifts_y).max())
-        print("Calcul depth max(", np.abs(self.shifts_x).max(), ",", np.abs(self.shifts_y).max(), ")")
-        print("=> depth", math.ceil(depth))
-        aligned_dem = map_overlap_multiproc_save(
-            self._wrapper_apply_epc,
-            self.reproject_dem,
-            self.mp_config,
-            coeff_x,
-            coeff_y,
-            coeff_z,
-            self.apply_z_correction,
-            depth=math.ceil(depth),
-        )
-
+            matrix = np.array(
+                [
+                    [1, 0, 0, self.meta["outputs"]["shift_x"]],
+                    [0, 1, 0, self.meta["outputs"]["shift_y"]],
+                    [0, 0, 1, self.meta["outputs"]["shift_z"]],
+                    [0, 0, 0, 1],
+                ]
+            )
+            import xdem
+            aligned_dem = xdem.coreg.apply_matrix(self.reproject_dem, matrix)
         return aligned_dem
