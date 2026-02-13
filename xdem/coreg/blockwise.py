@@ -23,8 +23,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-
-# import math
+import math
 import os
 import warnings
 from pathlib import Path
@@ -36,16 +35,17 @@ import rasterio as rio
 from geoutils.interface.gridding import _grid_pointcloud
 from geoutils.raster import Raster, RasterType
 from geoutils.raster.array import get_array_and_mask
-from geoutils.raster.distributed_computing import (  # map_overlap_multiproc_save,
+from geoutils.raster.distributed_computing import (
     MultiprocConfig,
     map_multiproc_collect,
+    map_overlap_multiproc_save,
 )
 from geoutils.raster.tiling import compute_tiling
 
 from xdem._misc import import_optional
 from xdem._typing import MArrayf, NDArrayb, NDArrayf
 from xdem.coreg.affine import NuthKaab
-from xdem.coreg.base import Coreg, CoregPipeline  # , apply_matrix
+from xdem.coreg.base import Coreg, CoregPipeline, apply_matrix
 
 
 class BlockwiseCoreg:
@@ -350,19 +350,20 @@ class BlockwiseCoreg:
         applied_dem_tile = gu.Raster.from_array(new_dem, tba_dem_tile.transform, tba_dem_tile.crs, tba_dem_tile.nodata)
         return applied_dem_tile
 
-    """def apply(
+    def apply(
         self,
+        method: str = "ransac",
         threshold_ransac: float = 0.01,
         max_iterations_ransac: int = 2000,
     ) -> RasterType:
-        ""
+        """
         Apply the coregistration transformation to an elevation array using a ransac filter.
 
+        :param method: Method to apply fit shifts
         :param threshold_ransac: Maximum distance threshold to consider a point as an inlier.
         :param max_iterations_ransac: Maximum number of RANSAC iterations to perform.
         :return: The transformed elevation raster.
-        ""
-        method = "ransac"
+        """
         if method == "ransac":
             coeff_x = self._ransac(
                 self.x_coords,  # type: ignore
@@ -409,15 +410,17 @@ class BlockwiseCoreg:
             )
         else:
             if method == "mean":
-                fun = np.mean
+                fun = np.mean  # type: ignore
             else:
-                fun = np.median
+                fun = np.median  # type: ignore
 
             self.meta["outputs"] = {
                 "shift_x": fun(self.shifts_x),
                 "shift_y": fun(self.shifts_y),
                 "shift_z": fun(self.shifts_z),
             }
+            if np.isnan(self.meta["outputs"]["shift_z"]):
+                self.meta["outputs"]["shift_z"] = 0
 
             matrix = np.array(
                 [
@@ -429,4 +432,6 @@ class BlockwiseCoreg:
             )
 
             aligned_dem = apply_matrix(self.reproject_dem, matrix)
-        return aligned_dem"""
+            aligned_dem.to_file(self.output_path_aligned)
+
+        return aligned_dem

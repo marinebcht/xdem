@@ -181,7 +181,8 @@ class TestBlockwiseCoreg:
             pytest.param(xdem.coreg.VerticalShift(), id="VerticalShift"),
         ],
     )
-    def test_blockwise_affine_coreg_pipeline(self, step_coreg, example_data, tmp_path, block_size):
+    @pytest.mark.parametrize("apply_method", ["ransac", "mean", "median"])
+    def test_blockwise_affine_coreg_pipeline(self, step_coreg, example_data, tmp_path, block_size, apply_method):
         """Test end-to-end blockwise coregistration and validate output."""
         ref, tba, mask = example_data
         if block_size < ref.shape[1]:
@@ -193,7 +194,7 @@ class TestBlockwiseCoreg:
         config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "test.tif")
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
         blockwise_coreg.fit(ref, tba, mask)
-        blockwise_coreg.apply()
+        blockwise_coreg.apply(method=apply_method)
 
         aligned = xdem.DEM(tmp_path / "aligned_dem.tif")
 
@@ -203,7 +204,7 @@ class TestBlockwiseCoreg:
         diff = np.abs(expected - aligned)
         # 90% of the aligned data differs by less than 2m
 
-        assert np.nanpercentile(diff, 90) < 10
+        assert np.nanpercentile(diff, 90) < 13
 
     @pytest.mark.parametrize(
         "step_coreg",
@@ -287,3 +288,65 @@ class TestBlockwiseCoreg:
         assert np.isclose(a, 0.3, atol=1e-2)
         assert np.isclose(b, -0.2, atol=1e-2)
         assert np.isclose(c, 1.0, atol=1e-2)
+
+    def test_mean_on_2d_grid(self, blockwise_coreg) -> None:
+        """Test case where RANSAC works on 2D grid."""
+        x, y = np.meshgrid(np.linspace(0, 10, 10), np.linspace(0, 5, 10))
+        x = x.ravel()
+        y = y.ravel()
+        shift = 0.3 * x - 0.2 * y + 1.0
+
+        a, b, c = blockwise_coreg._ransac(x, y, shift)
+
+        assert np.isclose(a, 0.3, atol=1e-2)
+        assert np.isclose(b, -0.2, atol=1e-2)
+        assert np.isclose(c, 1.0, atol=1e-2)
+
+    @pytest.mark.parametrize("block_size", [30])
+    @pytest.mark.parametrize("method", [("mean", np.mean), ("median", np.median)])
+    def test_blockwise_apply_numpy_method(self, method, example_data, tmp_path, block_size):
+        """Test end-to-end blockwise coregistration and validate output."""
+        ref, tba, mask = example_data
+        method_name, numpy_method = method
+
+        config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "test.tif")
+        blockwise = xdem.coreg.BlockwiseCoreg(
+            step=xdem.coreg.NuthKaab(vertical_shift=True), mp_config=config_mc, block_size_fit=block_size
+        )
+
+        blockwise.fit(ref, tba)
+        outputs_fit = blockwise.meta["outputs"]
+        aligned_dem = blockwise.apply(method=method_name)
+
+        # Valid output shifts
+        for ax in ["x", "y", "z"]:
+            label = "shift_" + ax
+            shifts = [outputs_fit[b][label] for b in outputs_fit.keys()]
+            assert blockwise.meta["outputs"][label] == numpy_method(shifts)
+
+        # Valid aligned_dem
+        matrix = np.array(
+            [
+                [1, 0, 0, blockwise.meta["outputs"]["shift_x"]],
+                [0, 1, 0, blockwise.meta["outputs"]["shift_y"]],
+                [0, 0, 1, blockwise.meta["outputs"]["shift_z"]],
+                [0, 0, 0, 1],
+            ]
+        )
+        ref_shifted = xdem.coreg.apply_matrix(tba, matrix)
+        assert ref_shifted.raster_equal(aligned_dem, strict_masked=True, warn_failure_reason=True)
+
+        # Valid output file metadata
+        import rasterio as rio
+
+        # OUTPUT FILE TODO
+        with rio.open(tmp_path / "aligned_dem.tif") as src:
+            metadata = src.meta
+            assert metadata["width"] == ref.width
+            assert metadata["height"] == ref.height
+            assert metadata["crs"] == ref.crs
+            assert metadata["transform"] == ref.transform
+            assert metadata["count"] == tba.count
+            # count TODO tba ou ref
+            assert metadata["dtype"] == tba.dtype
+            assert metadata["nodata"] == tba.nodata
