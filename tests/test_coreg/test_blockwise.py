@@ -9,6 +9,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pytest
+import rasterio as rio
 from geoutils import Raster, Vector
 from geoutils.interface.gridding import _grid_pointcloud
 from geoutils.raster import ClusterGenerator
@@ -36,7 +37,7 @@ def step() -> Coreg:
 
 @pytest.fixture
 def mp_config(tmp_path: Path) -> MultiprocConfig:
-    return MultiprocConfig(chunk_size=25, outfile=tmp_path / "test.tif")
+    return MultiprocConfig(chunk_size=25, outfile=tmp_path / "aligned_dem.tif")
 
 
 @pytest.fixture
@@ -47,14 +48,16 @@ def blockwise_coreg(step, mp_config) -> BlockwiseCoreg:
 class TestBlockwiseCoreg:
     """Tests for the xdem.coreg.BlockwiseCoreg class."""
 
-    def test_init_with_valid_parameters(self, mp_config, step, tmp_path) -> None:
+    def test_init_with_valid_parameters(self, step, tmp_path) -> None:
         """Test initialization with valid multiprocessing config only."""
+
+        mp_config = MultiprocConfig(chunk_size=25, outfile=tmp_path / "test.tif")
         coreg_obj = xdem.coreg.BlockwiseCoreg(step=step, mp_config=mp_config, block_size_fit=25, block_size_apply=25)
         assert coreg_obj.block_size_apply == 25
         assert coreg_obj.block_size_fit == 25
         assert coreg_obj.apply_z_correction is False
         assert coreg_obj.output_path_reproject == tmp_path / "reprojected_dem.tif"
-        assert coreg_obj.output_path_aligned == tmp_path / "aligned_dem.tif"
+        assert coreg_obj.output_path_aligned == tmp_path / "test.tif"
         assert coreg_obj.meta == {"inputs": {}, "outputs": {}}
 
     def test_init_raises_if_both_mp_config_and_parent_path_are_provided(self, mp_config, step, tmp_path) -> None:
@@ -77,12 +80,14 @@ class TestBlockwiseCoreg:
         assert isinstance(obj, xdem.coreg.BlockwiseCoreg)
         assert obj.mp_config == mp_config
         assert obj.parent_path == tmp_path
+        assert obj.output_path_aligned == tmp_path / "aligned_dem.tif"
 
     def test_init_success_with_only_parent_path(self, step, tmp_path) -> None:
         """Test successful initialization with only 'parent_path' set."""
         obj = xdem.coreg.BlockwiseCoreg(step=step, mp_config=None, parent_path=tmp_path)
         assert isinstance(obj, xdem.coreg.BlockwiseCoreg)
         assert obj.parent_path == tmp_path
+        assert obj.output_path_aligned == tmp_path / "aligned_dem.tif"
 
     def test_ransac_with_large_data(self, blockwise_coreg) -> None:
         """Test RANSAC estimates with synthetic data and known coefficients."""
@@ -191,7 +196,7 @@ class TestBlockwiseCoreg:
             tba_crop = tba.icrop(bbox=(0, 0, block_size, block_size))
             tba = tba_crop.reproject(tba)
 
-        config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "test.tif")
+        config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "aligned_dem.tif")
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
         blockwise_coreg.fit(ref, tba, mask)
         blockwise_coreg.apply(method=apply_method)
@@ -221,7 +226,7 @@ class TestBlockwiseCoreg:
         """
 
         config_mc = MultiprocConfig(
-            chunk_size=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
+            chunk_size=block_size, outfile=tmp_path / "aligned_dem.tif", cluster=ClusterGenerator("multi", nb_workers=4)
         )
         with pytest.raises(ValueError, match="The blockwise coregistration only supports affine coregistration steps."):
             _ = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
@@ -237,7 +242,7 @@ class TestBlockwiseCoreg:
             tba = tba_crop.reproject(tba)
 
         config_mc = MultiprocConfig(
-            chunk_size=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
+            chunk_size=block_size, outfile=tmp_path / "aligned_dem.tif", cluster=ClusterGenerator("multi", nb_workers=4)
         )
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step, mp_config=config_mc, block_size_fit=block_size)
         blockwise_coreg.fit(ref, tba, mask)
@@ -309,7 +314,7 @@ class TestBlockwiseCoreg:
         ref, tba, mask = example_data
         method_name, numpy_method = method
 
-        config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "test.tif")
+        config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "aligned_dem.tif")
         blockwise = xdem.coreg.BlockwiseCoreg(
             step=xdem.coreg.NuthKaab(vertical_shift=True), mp_config=config_mc, block_size_fit=block_size
         )
@@ -337,9 +342,6 @@ class TestBlockwiseCoreg:
         assert ref_shifted.raster_equal(aligned_dem, strict_masked=True, warn_failure_reason=True)
 
         # Valid output file metadata
-        import rasterio as rio
-
-        # OUTPUT FILE TODO
         with rio.open(tmp_path / "aligned_dem.tif") as src:
             metadata = src.meta
             assert metadata["width"] == ref.width
@@ -347,6 +349,5 @@ class TestBlockwiseCoreg:
             assert metadata["crs"] == ref.crs
             assert metadata["transform"] == ref.transform
             assert metadata["count"] == tba.count
-            # count TODO tba ou ref
             assert metadata["dtype"] == tba.dtype
             assert metadata["nodata"] == tba.nodata

@@ -99,13 +99,15 @@ class BlockwiseCoreg:
             self.mp_config.chunk_size = block_size_fit
             self.parent_path = Path(mp_config.outfile).parent
         else:
-            self.mp_config = MultiprocConfig(chunk_size=self.block_size_fit, outfile="aligned_dem.tif")
             self.parent_path = Path(parent_path)  # type: ignore
+            self.mp_config = MultiprocConfig(
+                chunk_size=self.block_size_fit, outfile=self.parent_path / "aligned_dem.tif"
+            )
 
         os.makedirs(self.parent_path, exist_ok=True)
 
         self.output_path_reproject = self.parent_path / "reprojected_dem.tif"
-        self.output_path_aligned = self.parent_path / "aligned_dem.tif"
+        self.output_path_aligned = self.mp_config.outfile
 
         self.meta = {"inputs": {}, "outputs": {}}
         self.shape_tiling_grid = (0, 0, 0)
@@ -168,7 +170,6 @@ class BlockwiseCoreg:
         """
 
         self.mp_config.outfile = self.output_path_reproject
-
         self.reproject_dem = to_be_aligned_elev.reproject(  # type: ignore
             ref=reference_elev, multiproc_config=self.mp_config, silent=True
         )
