@@ -69,7 +69,7 @@ class Topo(Workflows):
         """
 
         self.dem, self.inlier_mask, path_to_mask = self.load_dem(self.config["inputs"]["reference_elev"])
-        vunit = vertical_unit_symbol(self.dem.crs)
+        vunit = vertical_unit_symbol(self.dem.dem.crs)
         self.generate_plot(
             self.dem,
             filename="elev_map",
@@ -79,7 +79,7 @@ class Topo(Workflows):
 
         if self.inlier_mask is not None:
             inlier_mask_crop = self.inlier_mask.reproject(self.dem).crop(self.dem)
-            self.dem.set_mask(~inlier_mask_crop)
+            self.dem.mask = ~inlier_mask_crop
             self.generate_plot(
                 self.dem,
                 title="Masked elevation",
@@ -93,9 +93,9 @@ class Topo(Workflows):
         """
 
         attribute_extra = {}
-
+        print (type(self.dem), type(self.dem.dem), type(self.dem.rst))
         from_str_to_fun = {
-            "slope": lambda: self.dem.slope(**attribute_extra),
+            "slope": lambda: self.dem.dem.slope(**attribute_extra),
             "aspect": lambda: self.dem.aspect(**attribute_extra),
             "hillshade": lambda: self.dem.hillshade(**attribute_extra),
             "profile_curvature": lambda: self.dem.profile_curvature(**attribute_extra),
@@ -116,7 +116,8 @@ class Topo(Workflows):
                 attribute_extra = self.config_attributes.get(attr).get("extra_information", {})  # type: ignore
             attribute = from_str_to_fun[attr]()
             logging.info(f"Saving {attr} as a raster file ({attr}.tif)")
-            attribute.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
+            print (type(attribute),type(attribute.dem) )
+            attribute.dem.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
 
     def generate_terrain_attributes_png(self) -> None:
         """
@@ -127,7 +128,7 @@ class Topo(Workflows):
         logging.info(f"Computing attributes : {self.list_attributes}")
 
         attributes = xdem.terrain.get_terrain_attribute(
-            self.dem,
+            self.dem.dem,
             attribute=self.list_attributes,
         )
 
@@ -135,7 +136,7 @@ class Topo(Workflows):
 
         ncols = 2
         nrows = math.ceil(n / ncols)
-        unit = vertical_unit_symbol(self.dem.crs)
+        unit = vertical_unit_symbol(self.dem.dem.crs)
         attribute_params: dict[str, dict[str, Any]] = {
             "hillshade": {"label": "Hillshade", "cmap": "Greys_r", "vlim": (0, 255)},
             "texture_shading": {"label": "Texture shading", "cmap": "Greys_r", "vlim": (-20, 20)},
@@ -179,7 +180,7 @@ class Topo(Workflows):
             cmap = params["cmap"]
             label = params["label"]
             vmin, vmax = params["vlim"]
-            attributes[i].plot(ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar_title=label)
+            attributes[i].rst.to_geoutils().plot(ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar_title=label)
             ax.set_xticks([])
             ax.set_yticks([])
 
@@ -200,24 +201,24 @@ class Topo(Workflows):
 
         # Global information
         dem_informations = {
-            "Driver": self.dem.driver,
-            "Filename": self.dem.name,
-            "Number of band": self.dem.bands,
-            "Data types": self.dem.dtype,
-            "Nodata Value": self.dem.nodata,
-            "Pixel interpretation": self.dem.area_or_point,
-            "Pixel size": self.dem.res,
-            "Width": self.dem.width,
-            "Height": self.dem.height,
-            "Transform": self.dem.transform,
-            "Bounds": self.dem.bounds,
+            "Driver": self.dem.dem.driver,
+            "Filename": self.dem.dem.name,
+            "Number of band": self.dem.dem.bands,
+            "Data types": self.dem.dem.dtype,
+            "Nodata Value": self.dem.dem.nodata,
+            "Pixel interpretation": self.dem.dem.area_or_point,
+            "Pixel size": self.dem.dem.res,
+            "Width": self.dem.dem.width,
+            "Height": self.dem.dem.height,
+            "Transform": self.dem.dem.transform,
+            "Bounds": self.dem.dem.bounds,
         }
         self.dico_to_show.append(("Elevation information", dem_informations))
 
         # Statistics
         list_metrics = self.config["statistics"]
         if list_metrics is not None:
-            stats_dem = self.dem.get_stats(list_metrics)
+            stats_dem = self.dem.dem.get_stats(list_metrics)
             stats_dem = {_ALIAS.get(k, k): v for k, v in stats_dem.items()}
             self.save_stat_as_csv(stats_dem, "stats_elev")
             self.dico_to_show.append(("Statistics", self.floats_process(stats_dem)))

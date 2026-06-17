@@ -194,7 +194,6 @@ class Workflows(ABC):
 
         # Apply default cmap if not given in inputs
         if "cmap" in kwargs:
-            print(kwargs["cmap"])
             cmap = plt.get_cmap(name=kwargs["cmap"])
         else:
             cmap = plt.get_cmap(name="terrain")
@@ -205,12 +204,13 @@ class Workflows(ABC):
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])
 
         # Add the first image to the figure (left position)
-        dem.plot(ax=ax1, **kwargs)
+        print (type(dem), type(dem.rst))
+        dem.rst.to_geoutils().plot(ax=ax1, **kwargs)
         plt.title(title)
 
         # If exists, add the second image to the figure
         if dem_right is not None:
-            dem_right.plot(ax=ax2, **kwargs)
+            dem_right.rst.to_geoutils().plot(ax=ax2, **kwargs)
             plt.title(title_dem_right)
         else:
             ax2.set_axis_off()
@@ -254,7 +254,9 @@ class Workflows(ABC):
             if path_to_elev in list(_FILEPATHS_ALL.keys()):
                 path_to_elev = xdem.examples.get_path(path_to_elev)
 
-            dem = xdem.DEM(path_to_elev, downsample=config_dem.get("downsample", 1))
+            from xdem import examples, open_dem
+            dem = open_dem(path_to_elev, downsample=config_dem.get("downsample", 1))
+            print (dem)
             inlier_mask = None
             from_vcrs = config_dem.get("from_vcrs", None)
             to_vcrs = config_dem.get("to_vcrs", None)
@@ -277,7 +279,7 @@ class Workflows(ABC):
                     mask_path = xdem.examples.get_path(mask_path)
 
                 mask = gu.Vector(mask_path)
-                inlier_mask = ~mask.create_mask(dem)
+                inlier_mask = ~mask.create_mask(dem.rst)
 
             return dem, inlier_mask, mask_path
         else:

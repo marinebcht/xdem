@@ -332,14 +332,17 @@ def _preprocess_coreg_fit(
 ]:
     """Pre-processing and checks of fit for any input."""
 
+
     for elev in (reference_elev, to_be_aligned_elev):
-        if not isinstance(elev, (np.ndarray, gu.Raster, gpd.GeoDataFrame, gu.PointCloud)):
+        print ("type", type(elev))
+        print (elev, RasterType, xdem.DEM)
+        if not isinstance(elev, (np.ndarray, gu.Raster, xdem.DEM, gpd.GeoDataFrame, gu.PointCloud)):
             raise ValueError(
                 f"Input elevation data should be a raster, array, geodataframe or point cloud, " f"got {type(elev)}."
             )
 
     # If both inputs are raster or arrays, reprojection on the same grid is needed for raster-raster methods
-    if all(isinstance(elev, (np.ndarray, gu.Raster)) for elev in (reference_elev, to_be_aligned_elev)):
+    if all(isinstance(elev, (np.ndarray, gu.Raster, xdem.DEM)) for elev in (reference_elev, to_be_aligned_elev)):
         ref_elev, tba_elev, inlier_mask, transform, crs, area_or_point = _preprocess_coreg_fit_raster_raster(
             reference_dem=reference_elev,
             dem_to_be_aligned=to_be_aligned_elev,

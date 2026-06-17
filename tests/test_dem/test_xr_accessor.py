@@ -81,3 +81,4 @@ class TestAccessor:
         ds_comp = ds.compute()
         assert isinstance(ds_comp.data, np.ndarray)
         assert ds_comp._in_memory
+
