@@ -52,10 +52,9 @@ from geoutils.interface.gridding import _grid_pointcloud
 from geoutils.interface.interpolation import _interp_points_base
 from geoutils.pointcloud.pointcloud import PointCloud, PointCloudType
 from geoutils.raster import Raster, RasterType, raster
-from geoutils.raster.transformation import _resampling_method_from_str
 from geoutils.raster.array import get_array_and_mask
 from geoutils.raster.referencing import _cast_pixel_interpretation, _coords
-from geoutils.raster.transformation import _translate
+from geoutils.raster.transformation import _resampling_method_from_str, _translate
 
 import xdem
 from xdem._typing import MArrayf, NDArrayb, NDArrayf
@@ -332,10 +331,9 @@ def _preprocess_coreg_fit(
 ]:
     """Pre-processing and checks of fit for any input."""
 
-
     for elev in (reference_elev, to_be_aligned_elev):
-        print ("type", type(elev))
-        print (elev, RasterType, xdem.DEM)
+        print("type", type(elev))
+        print(elev, RasterType, xdem.DEM)
         if not isinstance(elev, (np.ndarray, gu.Raster, xdem.DEM, gpd.GeoDataFrame, gu.PointCloud)):
             raise ValueError(
                 f"Input elevation data should be a raster, array, geodataframe or point cloud, " f"got {type(elev)}."

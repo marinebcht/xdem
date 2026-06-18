@@ -204,7 +204,7 @@ class Workflows(ABC):
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])
 
         # Add the first image to the figure (left position)
-        print (type(dem), type(dem.rst))
+        print(type(dem), type(dem.rst))
         dem.rst.to_geoutils().plot(ax=ax1, **kwargs)
         plt.title(title)
 
@@ -255,8 +255,9 @@ class Workflows(ABC):
                 path_to_elev = xdem.examples.get_path(path_to_elev)
 
             from xdem import examples, open_dem
+
             dem = open_dem(path_to_elev, downsample=config_dem.get("downsample", 1))
-            print (dem)
+            print(dem)
             inlier_mask = None
             from_vcrs = config_dem.get("from_vcrs", None)
             to_vcrs = config_dem.get("to_vcrs", None)

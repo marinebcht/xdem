@@ -81,7 +81,7 @@ class Accuracy(Workflows):
 
         :return vmin, vmax: to plot elevation data with the same scale
         """
-        print ("_load_data")
+        print("_load_data")
         self.reference_elev, ref_mask, ref_mask_path = self.load_dem(self.config["inputs"].get("reference_elev", None))
         self.to_be_aligned_elev, tba_mask, tba_path_mask = self.load_dem(self.config["inputs"]["to_be_aligned_elev"])
         if self.reference_elev is None:

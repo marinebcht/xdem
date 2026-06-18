@@ -28,8 +28,8 @@ from pathlib import Path
 from typing import Any, Dict
 
 import xdem
-from xdem.vcrs import vertical_unit_symbol
 from xdem._misc import import_optional
+from xdem.vcrs import vertical_unit_symbol
 from xdem.workflows.schemas import TOPO_SCHEMA
 from xdem.workflows.workflows import _ALIAS, Workflows
 
@@ -93,7 +93,7 @@ class Topo(Workflows):
         """
 
         attribute_extra = {}
-        print (type(self.dem), type(self.dem.dem), type(self.dem.rst))
+        print(type(self.dem), type(self.dem.dem), type(self.dem.rst))
         from_str_to_fun = {
             "slope": lambda: self.dem.dem.slope(**attribute_extra),
             "aspect": lambda: self.dem.aspect(**attribute_extra),
@@ -116,7 +116,7 @@ class Topo(Workflows):
                 attribute_extra = self.config_attributes.get(attr).get("extra_information", {})  # type: ignore
             attribute = from_str_to_fun[attr]()
             logging.info(f"Saving {attr} as a raster file ({attr}.tif)")
-            print (type(attribute),type(attribute.dem) )
+            print(type(attribute), type(attribute.dem))
             attribute.dem.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
 
     def generate_terrain_attributes_png(self) -> None:
