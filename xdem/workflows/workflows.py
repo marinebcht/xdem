@@ -33,11 +33,12 @@ from geoutils.raster import RasterType
 
 import xdem
 from xdem import DEM
+from xdem.dem.base import DEMType
 from xdem._misc import import_optional
 from xdem.coreg.base import InputCoregDict, OutputCoregDict
 from xdem.examples import _FILEPATHS_ALL
 from xdem.workflows.schemas import validate_configuration
-
+from xdem import examples, open_dem
 # Inheritance of optional dependency class
 try:
     from yaml.dumper import SafeDumper  # type: ignore
@@ -114,6 +115,24 @@ class Workflows(ABC):
 
         for folder in ["plots", "rasters", "tables"]:
             Path(self.outputs_folder / folder).mkdir(parents=True, exist_ok=True)
+
+        self.dask = None
+        self.multiprocess = None
+        if self.config.get("scalability", None) is not None:
+            sca = self.config["scalability"]
+            self.dask = sca.get("dask", None)
+            if self.dask is None:
+                from geoutils.multiproc import MultiprocConfig
+                chunk_size = sca["multiprocess"]["chunk_size"]
+                nb_workers = sca["multiprocess"].get("nb_workers", None)
+                from geoutils.raster import ClusterGenerator
+                cluster = None
+                if nb_workers :
+                    cluster = ClusterGenerator("multi", nb_workers)
+                self.multiprocess = MultiprocConfig(chunk_size=chunk_size, cluster=cluster)
+            else :
+                self.multiprocess = None
+                self.dask["chunks"]["band"] = 1
 
         self.dico_to_show = [
             ("Information about inputs", self.config["inputs"]),
@@ -202,15 +221,14 @@ class Workflows(ABC):
 
         # Force figsize with the good ratio to prevent larger right axe if not filled
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])
-
+        print (kwargs)
         # Add the first image to the figure (left position)
-        print(type(dem), type(dem.rst))
-        dem.rst.to_geoutils().plot(ax=ax1, **kwargs)
+        dem.plot(ax=ax1, **kwargs)
         plt.title(title)
 
         # If exists, add the second image to the figure
         if dem_right is not None:
-            dem_right.rst.to_geoutils().plot(ax=ax2, **kwargs)
+            dem_right.plot(ax=ax2, **kwargs)
             plt.title(title_dem_right)
         else:
             ax2.set_axis_off()
@@ -238,7 +256,7 @@ class Workflows(ABC):
             return dict_with_floats
 
     @staticmethod
-    def load_dem(config_dem: Dict[str, Any] | None) -> tuple[DEM, Raster, str | None]:
+    def load_dem(config_dem: Dict[str, Any] | None, dask: Dict[str, Any] | None = None ) -> tuple[DEMType, RasterType, str | None]:
         """
         Generate DEM from user configuration dictionary.
 
@@ -254,25 +272,26 @@ class Workflows(ABC):
             if path_to_elev in list(_FILEPATHS_ALL.keys()):
                 path_to_elev = xdem.examples.get_path(path_to_elev)
 
-            from xdem import examples, open_dem
-
-            dem = open_dem(path_to_elev, downsample=config_dem.get("downsample", 1))
-            print(dem)
+            if dask is not None:
+                chunks = dask["chunks"]
+                dem = open_dem(path_to_elev, chunks=chunks) #, downsample=config_dem.get("downsample", 1))
+            else :
+                dem = open_dem(path_to_elev)
             inlier_mask = None
             from_vcrs = config_dem.get("from_vcrs", None)
             to_vcrs = config_dem.get("to_vcrs", None)
             if from_vcrs:
-                dem.set_vcrs(from_vcrs)
+                dem.dem.set_vcrs(from_vcrs)
             if to_vcrs:
-                if dem.vcrs is None and from_vcrs is None:
+                if dem.dem.vcrs is None and from_vcrs is None:
                     raise ValueError(
                         "You provided a 'to_vcrs' value, but the corresponding DEM does not have a current VCRS "
                         "(either in the metadata or entered via the 'from_vcrs' value)."
                     )
                 if from_vcrs != to_vcrs:
-                    dem.to_vcrs(to_vcrs, inplace=True)
+                    dem.dem.to_vcrs(to_vcrs, inplace=True)
             if config_dem.get("force_source_nodata") is not None:
-                dem.set_nodata(config_dem["force_source_nodata"], update_array=False, update_mask=False)
+                dem.dem.set_nodata(config_dem["force_source_nodata"], update_array=False, update_mask=False)
             if config_dem.get("path_to_mask") is not None:
                 mask_path = config_dem["path_to_mask"]
                 # If alias, get its path
@@ -280,7 +299,7 @@ class Workflows(ABC):
                     mask_path = xdem.examples.get_path(mask_path)
 
                 mask = gu.Vector(mask_path)
-                inlier_mask = ~mask.create_mask(dem.rst)
+                inlier_mask = ~mask.create_mask(dem.dem)
 
             return dem, inlier_mask, mask_path
         else:

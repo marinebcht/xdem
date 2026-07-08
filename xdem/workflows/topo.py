@@ -62,24 +62,28 @@ class Topo(Workflows):
         Path(self.outputs_folder / "used_config.yaml").write_text(yaml_str, encoding="utf-8")
 
         self.config = self.remove_none(self.config)  # type: ignore
+        logging.info(self.dask)
+        logging.info(self.multiprocess)
 
     def _load_data(self) -> None:
         """
         Load data defined in config file.
         """
-
-        self.dem, self.inlier_mask, path_to_mask = self.load_dem(self.config["inputs"]["reference_elev"])
+        self.dem, self.inlier_mask, path_to_mask = self.load_dem(self.config["inputs"]["reference_elev"], self.dask)
+        logging.info(self.dem)
         vunit = vertical_unit_symbol(self.dem.dem.crs)
+        print ("dem", type(self.dem))
+        print ("dem", type(self.dem.rst))
         self.generate_plot(
             self.dem,
             filename="elev_map",
             title="Elevation",
-            cbar_title=f"Elevation ({vunit})" if vunit is not None else "Elevation",
+            #cbar_title=f"Elevation ({vunit})" if vunit is not None else "Elevation",
         )
 
         if self.inlier_mask is not None:
             inlier_mask_crop = self.inlier_mask.reproject(self.dem).crop(self.dem)
-            self.dem.mask = ~inlier_mask_crop
+            self.dem.dem.mask = ~inlier_mask_crop
             self.generate_plot(
                 self.dem,
                 title="Masked elevation",
@@ -93,31 +97,29 @@ class Topo(Workflows):
         """
 
         attribute_extra = {}
-        print(type(self.dem), type(self.dem.dem), type(self.dem.rst))
         from_str_to_fun = {
             "slope": lambda: self.dem.dem.slope(**attribute_extra),
-            "aspect": lambda: self.dem.aspect(**attribute_extra),
-            "hillshade": lambda: self.dem.hillshade(**attribute_extra),
-            "profile_curvature": lambda: self.dem.profile_curvature(**attribute_extra),
-            "tangential_curvature": lambda: self.dem.tangential_curvature(**attribute_extra),
-            "planform_curvature": lambda: self.dem.planform_curvature(**attribute_extra),
-            "flowline_curvature": lambda: self.dem.flowline_curvature(**attribute_extra),
-            "max_curvature": lambda: self.dem.max_curvature(**attribute_extra),
-            "min_curvature": lambda: self.dem.min_curvature(**attribute_extra),
-            "topographic_position_index": lambda: self.dem.topographic_position_index(**attribute_extra),
-            "terrain_ruggedness_index": lambda: self.dem.terrain_ruggedness_index(**attribute_extra),
-            "roughness": lambda: self.dem.roughness(**attribute_extra),
-            "rugosity": lambda: self.dem.rugosity(**attribute_extra),
-            "texture_shading": lambda: self.dem.texture_shading(**attribute_extra),
-            "fractal_roughness": lambda: self.dem.fractal_roughness(**attribute_extra),
+            "aspect": lambda: self.dem.dem.aspect(**attribute_extra),
+            "hillshade": lambda: self.dem.dem.hillshade(**attribute_extra),
+            "profile_curvature": lambda: self.dem.dem.profile_curvature(**attribute_extra),
+            "tangential_curvature": lambda: self.dem.dem.tangential_curvature(**attribute_extra),
+            "planform_curvature": lambda: self.dem.dem.planform_curvature(**attribute_extra),
+            "flowline_curvature": lambda: self.dem.dem.flowline_curvature(**attribute_extra),
+            "max_curvature": lambda: self.dem.dem.max_curvature(**attribute_extra),
+            "min_curvature": lambda: self.dem.dem.min_curvature(**attribute_extra),
+            "topographic_position_index": lambda: self.dem.dem.topographic_position_index(**attribute_extra),
+            "terrain_ruggedness_index": lambda: self.dem.dem.terrain_ruggedness_index(**attribute_extra),
+            "roughness": lambda: self.dem.dem.roughness(**attribute_extra),
+            "rugosity": lambda: self.dem.dem.rugosity(**attribute_extra),
+            "texture_shading": lambda: self.dem.dem.texture_shading(**attribute_extra),
+            "fractal_roughness": lambda: self.dem.dem.fractal_roughness(**attribute_extra),
         }
         for attr in self.list_attributes:
             if isinstance(self.config_attributes, dict):
                 attribute_extra = self.config_attributes.get(attr).get("extra_information", {})  # type: ignore
             attribute = from_str_to_fun[attr]()
             logging.info(f"Saving {attr} as a raster file ({attr}.tif)")
-            print(type(attribute), type(attribute.dem))
-            attribute.dem.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
+            attribute.dem.to_geoutils().to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
 
     def generate_terrain_attributes_png(self) -> None:
         """

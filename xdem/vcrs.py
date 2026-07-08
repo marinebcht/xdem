@@ -675,6 +675,9 @@ def _to_vcrs_2d(
     transform = get_geo_attr(dem, "transform")
 
     # If both compound CRS are equal, do not run any transform
+    print (type(dem.crs))
+    print (type(src_ccrs))
+    print (type(dst_ccrs))
     if src_ccrs.equals(dst_ccrs):
         warnings.warn(
             message="Source and destination vertical CRS are the same, skipping vertical transformation.",

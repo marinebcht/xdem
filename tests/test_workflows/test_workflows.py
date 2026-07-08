@@ -255,7 +255,12 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
     config_dem = get_dem_config
     config_dem["from_vcrs"] = from_vcrs
     config_dem["to_vcrs"] = to_vcrs
-    input_dem = xdem.DEM(config_dem["path_to_elev"])
+    input_dem = xdem.open_dem(config_dem["path_to_elev"])
+    #input_dem.dem.set_vcrs("Ellipsoid")
+    #input_dem.dem.to_vcrs("EGM96")
+
+
+
     mean_before = np.nanmean(input_dem)
 
     if from_vcrs is None and from_vcrs != to_vcrs:
@@ -265,22 +270,23 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
 
     else:
         output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
+        #assert isinstance(output_dem, RasterT)
         mean_after = np.nanmean(output_dem)
 
         # Check output_dem vcrs reference
         if to_vcrs == "EGM96" or (to_vcrs is None and from_vcrs == "EGM96"):
-            assert output_dem._vcrs_name == "EGM96 height"
+            assert output_dem.dem._vcrs_name == "EGM96 height"
         elif to_vcrs == "Ellipsoid" or (to_vcrs is None and from_vcrs == "Ellipsoid"):
-            assert output_dem.vcrs == "Ellipsoid"
+            assert output_dem.dem.vcrs == "Ellipsoid"
         else:
-            assert output_dem.vcrs is None
+            assert output_dem.dem.vcrs is None
 
         # Check output_dem
         if from_vcrs == to_vcrs:
             # Need to convert input to the forced CRS, if it exists
             if from_vcrs is not None:
-                input_dem.set_vcrs(from_vcrs)
-            assert output_dem.raster_equal(input_dem, warn_failure_reason=True)
+                input_dem.rst.set_vcrs(from_vcrs)
+            assert output_dem.dem.raster_equal(input_dem.dem, warn_failure_reason=True)
 
         # About 32 meters of difference in Svalbard between EGM96 geoid and ellipsoid
         if to_vcrs == "Ellipsoid" and from_vcrs == "EGM96":
@@ -292,7 +298,7 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
         # Other outputs
         assert mask_path == config_dem["path_to_mask"]
         mask = gu.Vector(mask_path)
-        assert inlier_mask == ~mask.create_mask(input_dem)
+        assert inlier_mask == ~mask.create_mask(input_dem.dem)
 
 
 def test_load_dem_alias():
@@ -305,7 +311,9 @@ def test_load_dem_alias():
     config_dem["path_to_elev"] = "longyearbyen_ref_dem"
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
 
-    assert output_dem.raster_equal(xdem.DEM(xdem.examples.get_path(config_dem["path_to_elev"])))
+    input_dem = xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"]))
+
+    assert output_dem.rst.raster_equal(input_dem.rst)
     assert inlier_mask is None
     assert mask_path is None
 
@@ -315,6 +323,6 @@ def test_load_dem_alias():
     config_dem["path_to_mask"] = "longyearbyen_glacier_outlines"
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
 
-    assert output_dem == xdem.DEM(xdem.examples.get_path(config_dem["path_to_elev"]))
-    assert inlier_mask == ~gu.Vector(mask_path).create_mask(output_dem)
+    assert output_dem.rst.raster_equal(xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"])).rst)
+    assert inlier_mask == ~gu.Vector(mask_path).create_mask(output_dem.rst)
     assert mask_path == xdem.examples.get_path("longyearbyen_glacier_outlines")
