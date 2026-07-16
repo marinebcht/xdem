@@ -81,9 +81,9 @@ class Accuracy(Workflows):
 
         :return vmin, vmax: to plot elevation data with the same scale
         """
-        print("_load_data")
         self.reference_elev, ref_mask, ref_mask_path = self.load_dem(self.config["inputs"].get("reference_elev", None))
         self.to_be_aligned_elev, tba_mask, tba_path_mask = self.load_dem(self.config["inputs"]["to_be_aligned_elev"])
+
         if self.reference_elev is None:
             self.reference_elev = self._get_reference_elevation()
 
@@ -94,12 +94,13 @@ class Accuracy(Workflows):
         self.generate_plot(
             dem=self.reference_elev,
             title="Reference elevation",
+            label=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             filename="inputs",
             dem_right=self.to_be_aligned_elev,
             title_dem_right="To-be-aligned elevation",
+            label_right=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             vmin=vmin,
             vmax=vmax,
-            cbar_title=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
         )
         if ref_mask is not None or tba_mask is not None:
             if ref_mask is not None:
@@ -112,12 +113,13 @@ class Accuracy(Workflows):
             self.generate_plot(
                 self.reference_elev,
                 title="Masked terrain for reference elevation",
+                label=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
                 filename="masked_elev_map",
                 dem_right=self.to_be_aligned_elev,
                 title_dem_right="Masked terrain for to-be-aligned elevation",
+                label_right=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
                 vmin=vmin,
                 vmax=vmax,
-                cbar_title=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             )
 
         return vmin, vmax
@@ -210,10 +212,10 @@ class Accuracy(Workflows):
             self.generate_plot(
                 self.to_be_aligned_elev,
                 title="Preprocessed to-be-aligned elevation",
+                label=f"Elevation ({tba_vunit})" if tba_vunit is not None else "Elevation",
                 filename="preprocessed_to_be_aligned_elev_map",
                 vmin=vmin,
                 vmax=vmax,
-                cbar_title=f"Elevation ({tba_vunit})" if tba_vunit is not None else "Elevation",
             )
         else:
             self.reference_elev = self.reference_elev.crop(coord_intersection)
@@ -221,15 +223,19 @@ class Accuracy(Workflows):
             self.generate_plot(
                 self.reference_elev,
                 title="Preprocessed reference elevation",
+                label=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
                 filename="preprocessed_reference_elev_map",
                 vmin=vmin,
                 vmax=vmax,
-                cbar_title=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             )
 
         if self.level > 1:
-            self.reference_elev.to_geoutils().to_file(self.outputs_folder / "rasters" / "reference_elev_reprojected.tif")
-            self.to_be_aligned_elev.to_geoutils().to_file(self.outputs_folder / "rasters" / "to_be_aligned_elev_reprojected.tif")
+            self.reference_elev.to_geoutils().to_file(
+                self.outputs_folder / "rasters" / "reference_elev_reprojected.tif"
+            )
+            self.to_be_aligned_elev.to_geoutils().to_file(
+                self.outputs_folder / "rasters" / "to_be_aligned_elev_reprojected.tif"
+            )
 
     def _get_stats(self, dem: RasterType, name_of_data: str = "") -> floating[Any] | dict[str, floating[Any]]:
         """
@@ -360,7 +366,7 @@ class Accuracy(Workflows):
 
         else:
             self.diff = self.to_be_aligned_elev - ref_elev
-            self.stats = self.diff.get_stats(stats_keys)
+            self.stats = self.diff.dem.get_stats(stats_keys)
             vmin, vmax = -(self.stats["median"] + 3 * self.stats["nmad"]), self.stats["median"] + 3 * self.stats["nmad"]
             ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
             self.generate_plot(
@@ -418,7 +424,9 @@ class Accuracy(Workflows):
         if self.compute_coreg:
             self._compute_histogram()
             if self.level > 1:
-                self.diff_before.to_geoutils().to_file(self.outputs_folder / "rasters" / "diff_elev_before_coreg_map.tif")
+                self.diff_before.to_geoutils().to_file(
+                    self.outputs_folder / "rasters" / "diff_elev_before_coreg_map.tif"
+                )
                 self.diff_after.to_geoutils().to_file(self.outputs_folder / "rasters" / "diff_elev_after_coreg_map.tif")
         else:
             if self.level > 1:

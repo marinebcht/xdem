@@ -28,17 +28,16 @@ from typing import Any, Dict, List, Union
 
 import geoutils as gu
 import numpy as np
-from geoutils import Raster
 from geoutils.raster import RasterType
 
 import xdem
-from xdem import DEM
-from xdem.dem.base import DEMType
+from xdem import open_dem
 from xdem._misc import import_optional
 from xdem.coreg.base import InputCoregDict, OutputCoregDict
+from xdem.dem.base import DEMType
 from xdem.examples import _FILEPATHS_ALL
 from xdem.workflows.schemas import validate_configuration
-from xdem import examples, open_dem
+
 # Inheritance of optional dependency class
 try:
     from yaml.dumper import SafeDumper  # type: ignore
@@ -123,14 +122,16 @@ class Workflows(ABC):
             self.dask = sca.get("dask", None)
             if self.dask is None:
                 from geoutils.multiproc import MultiprocConfig
+
                 chunk_size = sca["multiprocess"]["chunk_size"]
                 nb_workers = sca["multiprocess"].get("nb_workers", None)
                 from geoutils.raster import ClusterGenerator
+
                 cluster = None
-                if nb_workers :
+                if nb_workers:
                     cluster = ClusterGenerator("multi", nb_workers)
                 self.multiprocess = MultiprocConfig(chunk_size=chunk_size, cluster=cluster)
-            else :
+            else:
                 self.multiprocess = None
                 self.dask["chunks"]["band"] = 1
 
@@ -182,9 +183,11 @@ class Workflows(ABC):
     def generate_plot(
         self,
         dem: RasterType,
+        label: str,
         title: str,
         filename: str,
         dem_right: str = None,
+        label_right: str = None,
         title_dem_right: str = None,
         **kwargs: Any,
     ) -> None:
@@ -192,9 +195,11 @@ class Workflows(ABC):
         Generate plot from a DEM.
 
         :param dem: Input digital elevation model (left)
+        :param label: Title of the cmap (left)
         :param title: Title of dem plot (left)
         :param filename: Filename of figure.
         :param dem_right: Input digital elevation model (right)
+        :param label_right: Title of the cmap (right)
         :param title_dem_right: Title of dem_right plot (right)
         :param mask_path: Path to mask file.
         :return: None
@@ -217,19 +222,20 @@ class Workflows(ABC):
         else:
             cmap = plt.get_cmap(name="terrain")
         cmap.set_bad(color="k", alpha=None)
-        kwargs["cmap"] = cmap
 
         # Force figsize with the good ratio to prevent larger right axe if not filled
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])
-        print (kwargs)
+
         # Add the first image to the figure (left position)
-        dem.plot(ax=ax1, **kwargs)
-        plt.title(title)
+        dem.plot(ax=ax1, cmap=cmap, cbar_kwargs={"label": label}, **kwargs)
+        ax1.set(xlabel=None, ylabel=None)
+        ax1.set_title(title)
 
         # If exists, add the second image to the figure
         if dem_right is not None:
-            dem_right.plot(ax=ax2, **kwargs)
-            plt.title(title_dem_right)
+            dem_right.plot(ax=ax2, cmap=cmap, cbar_kwargs={"label": label_right}, **kwargs)
+            ax2.set(xlabel=None, ylabel=None)
+            ax2.set_title(title_dem_right)
         else:
             ax2.set_axis_off()
 
@@ -256,7 +262,9 @@ class Workflows(ABC):
             return dict_with_floats
 
     @staticmethod
-    def load_dem(config_dem: Dict[str, Any] | None, dask: Dict[str, Any] | None = None ) -> tuple[DEMType, RasterType, str | None]:
+    def load_dem(
+        config_dem: Dict[str, Any] | None, dask: Dict[str, Any] | None = None
+    ) -> tuple[DEMType, RasterType, str | None]:
         """
         Generate DEM from user configuration dictionary.
 
@@ -274,9 +282,10 @@ class Workflows(ABC):
 
             if dask is not None:
                 chunks = dask["chunks"]
-                dem = open_dem(path_to_elev, chunks=chunks) #, downsample=config_dem.get("downsample", 1))
-            else :
+                dem = open_dem(path_to_elev, chunks=chunks)  # , downsample=config_dem.get("downsample", 1))
+            else:
                 dem = open_dem(path_to_elev)
+
             inlier_mask = None
             from_vcrs = config_dem.get("from_vcrs", None)
             to_vcrs = config_dem.get("to_vcrs", None)

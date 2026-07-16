@@ -70,15 +70,14 @@ class Topo(Workflows):
         Load data defined in config file.
         """
         self.dem, self.inlier_mask, path_to_mask = self.load_dem(self.config["inputs"]["reference_elev"], self.dask)
-        logging.info(self.dem)
         vunit = vertical_unit_symbol(self.dem.dem.crs)
-        print ("dem", type(self.dem))
-        print ("dem", type(self.dem.rst))
+        logging.info(self.dem)
+
         self.generate_plot(
             self.dem,
             filename="elev_map",
             title="Elevation",
-            #cbar_title=f"Elevation ({vunit})" if vunit is not None else "Elevation",
+            label=f"Elevation ({vunit})" if vunit is not None else "Elevation",
         )
 
         if self.inlier_mask is not None:
@@ -88,7 +87,7 @@ class Topo(Workflows):
                 self.dem,
                 title="Masked elevation",
                 filename="masked_elev_map",
-                cbar_title=f"Elevation ({vunit})" if vunit is not None else "Elevation",
+                label=f"Elevation ({vunit})" if vunit is not None else "Elevation",
             )
 
     def generate_terrain_attributes_tiff(self) -> None:
@@ -119,7 +118,7 @@ class Topo(Workflows):
                 attribute_extra = self.config_attributes.get(attr).get("extra_information", {})  # type: ignore
             attribute = from_str_to_fun[attr]()
             logging.info(f"Saving {attr} as a raster file ({attr}.tif)")
-            attribute.dem.to_geoutils().to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
+            attribute.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
 
     def generate_terrain_attributes_png(self) -> None:
         """
@@ -182,9 +181,9 @@ class Topo(Workflows):
             cmap = params["cmap"]
             label = params["label"]
             vmin, vmax = params["vlim"]
-            attributes[i].rst.to_geoutils().plot(ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar_title=label)
-            ax.set_xticks([])
-            ax.set_yticks([])
+            attributes[i].plot(ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar_kwargs={"label": label})
+            ax.set(xlabel=None, ylabel=None)
+            ax.set_title(None)
 
         [fig.delaxes(ax) for ax in axes.flatten() if not ax.has_data()]
         plt.tight_layout()
@@ -276,7 +275,12 @@ class Topo(Workflows):
             html += "<table border='1' cellspacing='0' cellpadding='5'>\n"
             html += "<tr><th>Information</th><th>Value</th></tr>\n"
             for key, val in dictionary.items():
+                import dask.array as da
+
+                if isinstance(val, da.Array):
+                    val = val.compute()
                 if "statistics" in title.lower():
+
                     html += f"<tr><td>{key}</td><td>{self.format_values_stats(key, val)}</td></tr>\n"
                 else:
                     html += f"<tr><td>{key}</td><td>{val}</td></tr>\n"
