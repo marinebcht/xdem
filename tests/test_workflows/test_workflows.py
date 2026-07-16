@@ -256,10 +256,8 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
     config_dem["from_vcrs"] = from_vcrs
     config_dem["to_vcrs"] = to_vcrs
     input_dem = xdem.open_dem(config_dem["path_to_elev"])
-    #input_dem.dem.set_vcrs("Ellipsoid")
-    #input_dem.dem.to_vcrs("EGM96")
-
-
+    # input_dem.dem.set_vcrs("Ellipsoid")
+    # input_dem.dem.to_vcrs("EGM96")
 
     mean_before = np.nanmean(input_dem)
 
@@ -270,7 +268,7 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
 
     else:
         output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
-        #assert isinstance(output_dem, RasterT)
+        # assert isinstance(output_dem, RasterT)
         mean_after = np.nanmean(output_dem)
 
         # Check output_dem vcrs reference

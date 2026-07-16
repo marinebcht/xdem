@@ -308,7 +308,6 @@ def test_topo_without_terrain_attributes_in_config(get_topo_inputs_config):
         ({"multiprocess": {"chunk_size": 10, "nb_workers": 0}}, "min value is 1"),
         ({"multiprocess": {"chunk_size": 10, "nb_workers": "aaaa"}}, "must be of integer type"),
         ({"multiprocess": {"nb_workers": 4}}, "required field"),
-
         ({"dask": None}, None),
         ({"dask": {"chunks": None}}, None),
         ({"dask": {"chunks": {"x": 1, "y": 1}}}, None),
@@ -320,8 +319,7 @@ def test_topo_without_terrain_attributes_in_config(get_topo_inputs_config):
         ({"dask": {"chunks": {"x": 1, "y": "aaa"}}}, "must be of integer type"),
         ({"dask": {"chunks": {"x": 1, "y": 1, "xxx": None}}}, "unknown field"),
         ({"dask": {"xxx": None}}, "unknown field"),
-
-        ({"multiprocess": {"chunk_size": 10}, "dask": {"chunks": None}}, "Cannot use Multiprocessing")
+        ({"multiprocess": {"chunk_size": 10}, "dask": {"chunks": None}}, "Cannot use Multiprocessing"),
         # test import dask
     ],
 )
@@ -334,8 +332,4 @@ def test_scalability(get_topo_inputs_config, scalability, error, caplog, assert_
     else:
         with pytest.raises(ValueError, match=error):
             _ = schemas.validate_configuration(topo_conf, schemas.TOPO_SCHEMA)
-        #assert_and_allow_log(caplog, level=logging.ERROR, match="'from_vcrs' field is not valid.*")
-
-
-
-
+        # assert_and_allow_log(caplog, level=logging.ERROR, match="'from_vcrs' field is not valid.*")

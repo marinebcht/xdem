@@ -80,6 +80,7 @@ class CustomValidator(Validator):  # type: ignore
                 return False
         return True
 
+
 INPUTS_DEM = {
     "path_to_elev": {"type": "string", "required": True, "path_exists": True},
     "force_source_nodata": {"type": ["integer", "float"], "required": False, "nullable": True},
@@ -188,19 +189,14 @@ def validate_configuration(user_config: dict[str, Any], schema: dict[str, Any]) 
     if user_config.get("scalability", None) is not None:
         sca = user_config["scalability"]
         if sca.get("dask", None) is not None and sca.get("multiprocess", None):
-            raise ValueError(
-                "Cannot use Multiprocessing and Dask simultaneously.."
-            )
-        if sca.get("dask", None) is not None :
+            raise ValueError("Cannot use Multiprocessing and Dask simultaneously..")
+        if sca.get("dask", None) is not None:
             try:
                 import dask.array as da
                 from dask import delayed
             except ImportError:
-                raise ImportError(
-                    "Dask need to be imported"
-                )
+                raise ImportError("Dask need to be imported")
     return validator.document
-
 
 
 DASK_SCHEMA = {
@@ -211,13 +207,13 @@ DASK_SCHEMA = {
         "schema": {
             "x": {"type": "integer", "nullable": False, "required": True, "min": 1},
             "y": {"type": "integer", "nullable": False, "required": True, "min": 1},
-        }
+        },
     }
 }
 
 MULTIPROCESS_SCHEMA = {
-    "chunk_size": {"type": "integer","required": True,"nullable": False,"min": 1},
-    "nb_workers": {"type": "integer","required": False,"nullable": True,"default": None,"min": 1}
+    "chunk_size": {"type": "integer", "required": True, "nullable": False, "min": 1},
+    "nb_workers": {"type": "integer", "required": False, "nullable": True, "default": None, "min": 1},
 }
 
 
@@ -269,15 +265,17 @@ ACCURACY_SCHEMA = {
         "required": True,
         "nullable": True,
         "schema": {
-            "dask": {
-                "type": "dict", "required": False, "default": None, "nullable": True, "schema": DASK_SCHEMA
-            },
+            "dask": {"type": "dict", "required": False, "default": None, "nullable": True, "schema": DASK_SCHEMA},
             "multiprocess": {
-                "type": "dict", "required": False, "nullable": True, "default": None, "schema": MULTIPROCESS_SCHEMA
+                "type": "dict",
+                "required": False,
+                "nullable": True,
+                "default": None,
+                "schema": MULTIPROCESS_SCHEMA,
             },
         },
-        "default": None
-    }
+        "default": None,
+    },
 }
 TOPO_SCHEMA = {
     "inputs": {
@@ -325,14 +323,16 @@ TOPO_SCHEMA = {
         "required": False,
         "nullable": True,
         "schema": {
-            "dask": {
-                "type": "dict", "required": False, "default": None, "nullable": True, "schema": DASK_SCHEMA
-            },
+            "dask": {"type": "dict", "required": False, "default": None, "nullable": True, "schema": DASK_SCHEMA},
             "multiprocess": {
-                "type": "dict", "required": False, "nullable": True, "default": None, "schema": MULTIPROCESS_SCHEMA
+                "type": "dict",
+                "required": False,
+                "nullable": True,
+                "default": None,
+                "schema": MULTIPROCESS_SCHEMA,
             },
         },
-    }
+    },
 }
 
 COMPLETE_CONFIG_ACCURACY = {
