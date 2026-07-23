@@ -29,6 +29,7 @@ dependencies:
   - cerberus  # For CLI
   - pyyaml  # For CLI
   - tqdm  # For progress bars
+  - plutoprint  # For CLI
 
   # Test dependencies
   - pytest
