@@ -111,7 +111,8 @@ class BlockwiseCoreg:
 
         self.output_path_aligned = self.parent_path / self.mp_config.outfile
 
-        self.meta = {"inputs": {}, "outputs": {}}
+        blockwise_dict = {"block_size_fit": self.block_size_fit, "block_size_apply": self.block_size_apply}
+        self.meta = {"inputs": {"blockwise": blockwise_dict}, "outputs": {}}
         self.shape_tiling_grid = (0, 0, 0)
 
     @staticmethod
@@ -169,7 +170,7 @@ class BlockwiseCoreg:
         :return: None. Updates internal model parameters.
         """
 
-        self.meta["inputs"] = self.procstep.meta["inputs"]  # type: ignore
+        self.meta["inputs"].update(self.procstep.meta["inputs"])  # type: ignore
 
         outputs_coreg = map_multiproc_collect(
             self._coreg_wrapper,
