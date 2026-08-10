@@ -26,12 +26,11 @@ import logging
 import math
 import os
 import warnings
+from pathlib import Path
 from typing import (
     Literal,
     overload,
 )
-
-from pathlib import Path
 
 import geopandas as gpd
 import geoutils as gu
