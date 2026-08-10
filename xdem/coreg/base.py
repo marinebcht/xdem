@@ -2159,6 +2159,11 @@ class Coreg:
                             f"    {dict_key_to_str[k]}:".ljust(tab) + f"{format_coregdict_values(v, tab)}\n"
                             for k, v in existing_level_keys
                         ]
+            if "0_0" in self._meta["outputs"]:
+                for bloc in self._meta["outputs"].keys():
+                    shifts = [f"{v:.2f}" for v in self._meta["outputs"][bloc].values()]
+                    outputs_str += f"    {bloc}: [{', '.join(shifts)}]\n"
+
         elif not self._fit_called:
             outputs_str += ["  None yet (fit not called)"]
         # Not sure this case can happen, but just in case

@@ -26,6 +26,11 @@ import logging
 import math
 import os
 import warnings
+from typing import (
+    Literal,
+    overload,
+)
+
 from pathlib import Path
 
 import geopandas as gpd
@@ -213,7 +218,7 @@ class BlockwiseCoreg:
             self.shifts_z.append(shift_z)
 
             tile_str = f"{rows_cols[idx][0]}_{rows_cols[idx][1]}"
-            self.meta["outputs"][tile_str] = {  # type: ignore
+            self.procstep._meta["outputs"][tile_str] = {  # type: ignore
                 "shift_x": shift_x,
                 "shift_y": shift_y,
                 "shift_z": shift_z,
@@ -222,6 +227,9 @@ class BlockwiseCoreg:
         self.x_coords, self.y_coords, self.shifts_x, self.shifts_y, self.shifts_z = map(  # type: ignore
             np.array, (self.x_coords, self.y_coords, self.shifts_x, self.shifts_y, self.shifts_z)
         )
+
+        # Flag that the fitting function has been called.
+        self.procstep._fit_called = True
 
     @staticmethod
     def _ransac(
@@ -406,3 +414,28 @@ class BlockwiseCoreg:
         )
 
         return aligned_dem
+
+    @overload
+    def info(self, as_str: Literal[False] = ...) -> None: ...
+
+    @overload
+    def info(self, as_str: Literal[True]) -> str: ...
+
+    def info(self, as_str: bool = False) -> None | str:
+        """Summarize information about this blockwise."""
+
+        header_str = [
+            "Blockwise information \n",
+            f"  Block size fit:       {self.block_size_fit} \n",
+            f"  Block size apply:     {self.block_size_apply} \n",
+        ]
+
+        step_str_tab = self.procstep.info(as_str=True).split("\n")
+        step_str_tab.insert(step_str_tab.index("Inputs"), f"  Blockwise?    True")
+
+        # Return as string or print (default)
+        if as_str:
+            return "".join(header_str) + "\n".join(step_str_tab)
+        else:
+            print("".join(header_str) + "\n".join(step_str_tab))
+            return None
