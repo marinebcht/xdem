@@ -13,6 +13,7 @@ import pytest
 import rasterio as rio
 import scipy.optimize
 from geoutils import Raster, Vector
+from geoutils._typing import Number
 from geoutils.raster.geotransformations import _translate
 from scipy.ndimage import binary_dilation
 
@@ -631,3 +632,46 @@ class TestAffineCoreg:
 
         assert dem_aligned_is.transform == dem_aligned.transform
         assert dem_aligned_is.crs == dem_aligned.crs
+
+    @pytest.mark.parametrize("initial_shift", [None, (8, 4, 0)])
+    def test_pipeline_initial_shift(self, initial_shift: tuple[Number, Number, Number] | None) -> None:
+        """
+        Test that the initial_shift does not impact fit_and_apply process.
+        """
+        ref = load_examples()[0]
+        shift = (10, 2, 0)
+        ref_shifted = ref.translate(shift[0], shift[1]) + shift[2]
+        shifts = ["shift_x", "shift_y", "shift_z"]
+
+        # Handmade NuthKaab pipeline
+        nk_1 = coreg.NuthKaab(initial_shift=initial_shift)
+        nk_1.fit(reference_elev=ref, to_be_aligned_elev=ref_shifted, random_state=42)
+        shifts_out_nk1 = [nk_1.meta["outputs"]["affine"][k] for k in shifts]  # type: ignore
+        output_tmp = nk_1.apply(elev=ref_shifted)
+        nk_2 = coreg.NuthKaab(initial_shift=None)
+        nk_2.fit(reference_elev=ref, to_be_aligned_elev=output_tmp, random_state=42)
+        shifts_out_nk2 = [nk_2.meta["outputs"]["affine"][k] for k in shifts]  # type: ignore
+
+        # Automatic pipeline
+        pipeline = coreg.NuthKaab(initial_shift=initial_shift) + coreg.NuthKaab(initial_shift=None)
+        if initial_shift:
+            assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == initial_shift
+        else:
+            assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
+        assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
+        pipeline.fit(ref, ref_shifted, random_state=42)
+        assert [pipeline.pipeline[0].meta["outputs"]["affine"][k] for k in shifts] == shifts_out_nk1  # type: ignore
+        assert [pipeline.pipeline[1].meta["outputs"]["affine"][k] for k in shifts] == shifts_out_nk2  # type: ignore
+
+    @pytest.mark.parametrize(
+        "initial_shifts", [[None, (8, 4, 0), None], [None, None, (8, 4, 0)], [(8, 4, 0), (8, 4, 0), None]]
+    )
+    def test_pipeline_initial_shift_errors(self, initial_shifts: list[Any]) -> None:
+        """
+        Test that the initial_shift does not impact fit_and_apply process.
+        """
+        is1, is2, is3 = initial_shifts
+        pipeline = (
+            coreg.NuthKaab(initial_shift=is1) + coreg.NuthKaab(initial_shift=is1) + coreg.NuthKaab(initial_shift=is3)
+        )
+        print(pipeline)

@@ -130,7 +130,6 @@ def _preprocess_coreg_fit_raster_raster(
     area_or_point: Literal["Area", "Point"] | None = None,
 ) -> tuple[NDArrayf, NDArrayf, NDArrayb, affine.Affine, rio.crs.CRS, Literal["Area", "Point"] | None]:
     """Pre-processing and checks of fit() for two raster input."""
-
     # Validate that both inputs are valid array-like (or Raster) types.
     if not all(isinstance(dem, (np.ndarray, gu.Raster)) for dem in (reference_dem, dem_to_be_aligned)):
         raise ValueError(
@@ -388,6 +387,7 @@ def _preprocess_coreg_fit(
 
     # If both inputs are points, simply reproject to the same CRS
     else:
+
         ref_elev = reference_elev if isinstance(reference_elev, gpd.GeoDataFrame) else reference_elev.ds  # type: ignore
         tba_elev = (
             to_be_aligned_elev
@@ -2010,11 +2010,11 @@ class Coreg:
         if not isinstance(other, Coreg):
             raise ValueError(f"Incompatible add type: {type(other)}. Expected 'Coreg' subclass")
 
-        # Cancel possible initial shift(s) in CoregPipeline case
+        """# Cancel possible initial shift(s) in CoregPipeline case
         if "affine" in self.meta["inputs"] and "initial_shift" in self.meta["inputs"]["affine"]:
             del self.meta["inputs"]["affine"]["initial_shift"]
         if "affine" in other.meta["inputs"] and "initial_shift" in other.meta["inputs"]["affine"]:
-            del other.meta["inputs"]["affine"]["initial_shift"]
+            del other.meta["inputs"]["affine"]["initial_shift"]"""
 
         return CoregPipeline([self, other])
 
@@ -2278,6 +2278,8 @@ class Coreg:
         :param random_state: Random state or seed number to use for calculations (to fix random sampling).
         """
 
+        print("def fit", random_state)
+
         if weights is not None:
             raise NotImplementedError("Weights have not yet been implemented")
 
@@ -2307,11 +2309,20 @@ class Coreg:
         # Apply the shift to the source dem if given
         initial_shift_apply = False
         if self._meta["inputs"]["affine"].get("initial_shift") is not None:
-            shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
-            shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
+
             # shift_z is currently always equal to zero
-            reference_elev = reference_elev.translate(-shift_x, -shift_y)  # type: ignore
-            initial_shift_apply = True
+            if isinstance(reference_elev, gu.Raster):
+                shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
+                shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
+                reference_elev = reference_elev.translate(-shift_x, -shift_y)  # type: ignore
+                initial_shift_apply = True
+
+            else:
+                shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
+                shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
+                transform = _translate(transform, xoff=-shift_x, yoff=-shift_y)
+
+                initial_shift_apply = True
 
         # Pre-process the inputs, by reprojecting and converting to arrays
         ref_elev, tba_elev, inlier_mask, transform, crs, area_or_point, z_name = _preprocess_coreg_fit(
@@ -2345,6 +2356,8 @@ class Coreg:
                 bias_vars[var] = gu.raster.get_array_and_mask(bias_vars[var])[0]
 
             main_args.update({"bias_vars": bias_vars})
+
+        main_args["area_or_point"] = "area"
 
         # Run the associated fitting function, which has fallback logic for "raster-raster", "raster-point" or
         # "point-point" depending on what is available for a certain Coreg function
@@ -2889,6 +2902,9 @@ class CoregPipeline(Coreg):
         :param: Processing steps to run in the sequence they are given.
         """
         self.pipeline = pipeline
+        for coreg in pipeline[1:]:
+            if "initial_shift" in coreg.meta["inputs"]["affine"]:
+                logging.warning("No initial shift can be xxx")
 
         super().__init__()
 
@@ -2985,6 +3001,7 @@ class CoregPipeline(Coreg):
         **kwargs: Any,
     ) -> CoregType:
 
+        print("def fit pipeline", type(reference_elev))
         # Check if subsample arguments are different from their default value for any of the coreg steps:
         # get default value in argument spec and "subsample" stored in meta, and compare both are consistent
         argspec = [inspect.getfullargspec(c.__class__) for c in self.pipeline]
@@ -3002,7 +3019,7 @@ class CoregPipeline(Coreg):
             # Filter warnings of individual pipelines now that the one above was raised
             warnings.filterwarnings("ignore", message="Subsample argument passed to*", category=UserWarning)
 
-        # Pre-process the inputs, by reprojecting and subsampling, without any subsampling (done in each step)
+        """# Pre-process the inputs, by reprojecting and subsampling, without any subsampling (done in each step)
         ref_dem, tba_dem, inlier_mask, transform, crs, area_or_point, z_name = _preprocess_coreg_fit(
             reference_elev=reference_elev,
             to_be_aligned_elev=to_be_aligned_elev,
@@ -3011,18 +3028,17 @@ class CoregPipeline(Coreg):
             crs=crs,
             area_or_point=area_or_point,
             z_name=z_name,
-        )
-        tba_dem_mod = tba_dem.copy()
-        out_transform = transform
+        )"""
+        to_be_aligned_elev_mod = to_be_aligned_elev.copy()
+        # out_transform = transform
 
         for i, coreg in enumerate(self.pipeline):
             logging.debug("Running pipeline step: %d / %d", i + 1, len(self.pipeline))
 
             main_args_fit = {
-                "reference_elev": ref_dem,
-                "to_be_aligned_elev": tba_dem_mod,
+                "reference_elev": reference_elev,
+                "to_be_aligned_elev": to_be_aligned_elev_mod,
                 "inlier_mask": inlier_mask,
-                "transform": out_transform,
                 "crs": crs,
                 "z_name": z_name,
                 "weights": weights,
@@ -3030,7 +3046,7 @@ class CoregPipeline(Coreg):
                 "random_state": random_state,
             }
 
-            main_args_apply = {"elev": tba_dem_mod, "transform": out_transform, "crs": crs, "z_name": z_name}
+            main_args_apply = {"elev": to_be_aligned_elev_mod, "crs": crs, "z_name": z_name}
 
             # If non-affine method that expects a bias_vars argument
             if coreg._needs_vars:
@@ -3045,10 +3061,10 @@ class CoregPipeline(Coreg):
             # Step apply: one output for a geodataframe, two outputs for array/transform
             # We only run this step if it's not the last, otherwise it is unused!
             if i != (len(self.pipeline) - 1):
-                if isinstance(tba_dem_mod, gpd.GeoDataFrame):
-                    tba_dem_mod = coreg.apply(**main_args_apply)
+                if isinstance(to_be_aligned_elev_mod, gpd.GeoDataFrame):
+                    to_be_aligned_elev_mod = coreg.apply(**main_args_apply)
                 else:
-                    tba_dem_mod, out_transform = coreg.apply(**main_args_apply)
+                    to_be_aligned_elev_mod = coreg.apply(**main_args_apply)
 
         # Flag that the fitting function has been called.
         self._fit_called = True
