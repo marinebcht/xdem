@@ -126,9 +126,6 @@ def main(arg_list: list[str] | None = None) -> None:
     logging.getLogger("fontTools").setLevel(logging.WARNING)
     logging.getLogger("fontTools").propagate = False
 
-    if args.output and not args.config:
-        parser.error("Argument --output requires --config.")
-
     if args.command == "topo":
         if args.template_config or args.template_config is None:
             if args.template_config is None:

@@ -23,6 +23,7 @@ test for CLI class
 
 import logging
 import os
+import subprocess
 
 # mypy: disable-error-code=no-untyped-def
 from pathlib import Path
@@ -35,6 +36,10 @@ from xdem.workflows.schemas import COMPLETE_CONFIG_ACCURACY, COMPLETE_CONFIG_TOP
 
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
 pytest.importorskip("cerberus")
+
+
+def test_xdem():
+    subprocess.run(["xdem"])
 
 
 @pytest.mark.parametrize("help_arg", [[], ["-h"], ["--help"]])
