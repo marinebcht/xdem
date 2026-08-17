@@ -2007,6 +2007,10 @@ def _check_type(value: Any, expected_type: tuple[Any, ...]) -> bool:
         if origin_type is NDArray:
             print("   => NDArray")
             args = get_args(expected_type)
+            print(args)
+            print(isinstance(value, list))
+            print(isinstance(value, list))
+            print(all(_check_type(v, args) for v in value))
             return isinstance(value, list) and all(_check_type(v, args) for v in value)
 
     # Expected type need to be a tuple
