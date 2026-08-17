@@ -1999,6 +1999,16 @@ def _check_type(value: Any, expected_type: tuple[Any, ...]) -> bool:
         args = get_args(expected_type)
         return isinstance(value, list) and all(_check_type(v, args) for v in value)
 
+    import sys
+
+    if sys.version_info.minor >= 9:
+        from numpy.typing import NDArray
+
+        if origin_type is NDArray:
+            print("   => NDArray")
+            args = get_args(expected_type)
+            return isinstance(value, list) and all(_check_type(v, args) for v in value)
+
     # Expected type need to be a tuple
     if origin_type is tuple:
         print("   => tuple")
