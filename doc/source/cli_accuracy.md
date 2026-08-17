@@ -134,7 +134,6 @@ Inputs information, split between reference and to-be-aligned elevation data.
 :::
 
 :::{note}
-
 The `path_to_mask` parameter accepts both vector and raster masks.
 For the second case, pixels with a value of 0 are considered part of the mask, while any non-zero and nodata values are considered valid.
 

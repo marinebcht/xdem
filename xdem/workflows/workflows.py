@@ -30,6 +30,7 @@ import geoutils as gu
 import numpy as np
 import pyogrio.errors
 import rasterio.errors
+from exceptiongroup import ExceptionGroup
 from geoutils import Raster
 from geoutils.raster import RasterType
 
