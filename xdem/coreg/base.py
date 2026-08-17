@@ -2278,7 +2278,7 @@ class Coreg:
         :param random_state: Random state or seed number to use for calculations (to fix random sampling).
         """
 
-        print("def fit", random_state)
+        print("def fit", random_state, transform)
 
         if weights is not None:
             raise NotImplementedError("Weights have not yet been implemented")
@@ -2320,8 +2320,8 @@ class Coreg:
             else:
                 shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
                 shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
-                transform = _translate(transform, xoff=-shift_x, yoff=-shift_y)
 
+                transform = _translate(transform, xoff=-shift_x, yoff=-shift_y)
                 initial_shift_apply = True
 
         # Pre-process the inputs, by reprojecting and converting to arrays
@@ -2451,6 +2451,8 @@ class Coreg:
 
         :returns: The transformed DEM.
         """
+        print("input apply", type(elev))
+
         if not self._fit_called and self._meta["outputs"]["affine"].get("matrix") is None:
             raise AssertionError(".fit() does not seem to have been called yet")
 
@@ -2486,6 +2488,7 @@ class Coreg:
         )
 
         # Only return object if raster or geodataframe, also return transform if object was an array
+        print("output apply", type(applied_elev))
         if isinstance(applied_elev, (Raster, gpd.GeoDataFrame, PointCloud)):
             return applied_elev
         else:
@@ -2903,7 +2906,7 @@ class CoregPipeline(Coreg):
         """
         self.pipeline = pipeline
         for coreg in pipeline[1:]:
-            if "initial_shift" in coreg.meta["inputs"]["affine"]:
+            if "affine" in coreg.meta["inputs"] and "initial_shift" in coreg.meta["inputs"]["affine"]:
                 logging.warning("No initial shift can be xxx")
 
         super().__init__()
@@ -3029,15 +3032,15 @@ class CoregPipeline(Coreg):
             area_or_point=area_or_point,
             z_name=z_name,
         )"""
-        to_be_aligned_elev_mod = to_be_aligned_elev.copy()
-        # out_transform = transform
+        tba_dem_mod = to_be_aligned_elev.copy()
 
         for i, coreg in enumerate(self.pipeline):
             logging.debug("Running pipeline step: %d / %d", i + 1, len(self.pipeline))
-
+            print("ici", i, type(reference_elev), transform is None)
             main_args_fit = {
                 "reference_elev": reference_elev,
-                "to_be_aligned_elev": to_be_aligned_elev_mod,
+                "to_be_aligned_elev": tba_dem_mod,
+                "transform": transform,
                 "inlier_mask": inlier_mask,
                 "crs": crs,
                 "z_name": z_name,
@@ -3046,7 +3049,7 @@ class CoregPipeline(Coreg):
                 "random_state": random_state,
             }
 
-            main_args_apply = {"elev": to_be_aligned_elev_mod, "crs": crs, "z_name": z_name}
+            main_args_apply = {"elev": tba_dem_mod, "transform": transform, "crs": crs, "z_name": z_name}
 
             # If non-affine method that expects a bias_vars argument
             if coreg._needs_vars:
@@ -3061,10 +3064,11 @@ class CoregPipeline(Coreg):
             # Step apply: one output for a geodataframe, two outputs for array/transform
             # We only run this step if it's not the last, otherwise it is unused!
             if i != (len(self.pipeline) - 1):
-                if isinstance(to_be_aligned_elev_mod, gpd.GeoDataFrame):
-                    to_be_aligned_elev_mod = coreg.apply(**main_args_apply)
+                print(main_args_apply)
+                if isinstance(tba_dem_mod, (Raster, gpd.GeoDataFrame, PointCloud)):
+                    tba_dem_mod = coreg.apply(**main_args_apply)
                 else:
-                    to_be_aligned_elev_mod = coreg.apply(**main_args_apply)
+                    tba_dem_mod, transform = coreg.apply(**main_args_apply)
 
         # Flag that the fitting function has been called.
         self._fit_called = True

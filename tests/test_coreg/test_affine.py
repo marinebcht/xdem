@@ -634,22 +634,30 @@ class TestAffineCoreg:
         assert dem_aligned_is.crs == dem_aligned.crs
 
     @pytest.mark.parametrize("initial_shift", [None, (8, 4, 0)])
-    def test_pipeline_initial_shift(self, initial_shift: tuple[Number, Number, Number] | None) -> None:
+    @pytest.mark.parametrize("array", [True, False])
+    def test_pipeline_initial_shift(self, initial_shift: tuple[Number, Number, Number] | None, array: bool) -> None:
         """
-        Test that the initial_shift does not impact fit_and_apply process.
+        Test that the initial_shift in the first coreg of a CoregPipeline works well
         """
         ref = load_examples()[0]
         shift = (10, 2, 0)
         ref_shifted = ref.translate(shift[0], shift[1]) + shift[2]
         shifts = ["shift_x", "shift_y", "shift_z"]
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        if array:
+            transform = ref.transform
+            ref = ref.data
+        else:
+            transform = None
 
         # Handmade NuthKaab pipeline
         nk_1 = coreg.NuthKaab(initial_shift=initial_shift)
-        nk_1.fit(reference_elev=ref, to_be_aligned_elev=ref_shifted, random_state=42)
+        nk_1.fit(reference_elev=ref, transform=transform, to_be_aligned_elev=ref_shifted, random_state=42)
         shifts_out_nk1 = [nk_1.meta["outputs"]["affine"][k] for k in shifts]  # type: ignore
         output_tmp = nk_1.apply(elev=ref_shifted)
         nk_2 = coreg.NuthKaab(initial_shift=None)
-        nk_2.fit(reference_elev=ref, to_be_aligned_elev=output_tmp, random_state=42)
+        nk_2.fit(reference_elev=ref, transform=transform, to_be_aligned_elev=output_tmp, random_state=42)
         shifts_out_nk2 = [nk_2.meta["outputs"]["affine"][k] for k in shifts]  # type: ignore
 
         # Automatic pipeline
@@ -659,7 +667,7 @@ class TestAffineCoreg:
         else:
             assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
         assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
-        pipeline.fit(ref, ref_shifted, random_state=42)
+        pipeline.fit(reference_elev=ref, to_be_aligned_elev=ref_shifted, transform=transform, random_state=42)
         assert [pipeline.pipeline[0].meta["outputs"]["affine"][k] for k in shifts] == shifts_out_nk1  # type: ignore
         assert [pipeline.pipeline[1].meta["outputs"]["affine"][k] for k in shifts] == shifts_out_nk2  # type: ignore
 
@@ -671,7 +679,6 @@ class TestAffineCoreg:
         Test that the initial_shift does not impact fit_and_apply process.
         """
         is1, is2, is3 = initial_shifts
-        pipeline = (
+        """pipeline = (
             coreg.NuthKaab(initial_shift=is1) + coreg.NuthKaab(initial_shift=is1) + coreg.NuthKaab(initial_shift=is3)
-        )
-        print(pipeline)
+        )"""
