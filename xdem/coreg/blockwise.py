@@ -203,10 +203,10 @@ class BlockwiseCoreg:
             print(type(self.block_size_fit))
             print(type(to_be_aligned_elev.transform))
 
-            x, y = (
+            x, y = to_be_aligned_elev.transform * (
                 tile_coords[2] + self.block_size_fit / 2,
                 tile_coords[0] + self.block_size_fit / 2,
-            ) * to_be_aligned_elev.transform  # type: ignore
+            )  # type: ignore
 
             self.x_coords.append(x)
             self.y_coords.append(y)
