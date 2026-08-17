@@ -489,11 +489,11 @@ class TestDEM:
                 id="NuthKaab method: (10, 50, 20) initial shift",
             ),
             pytest.param(
-                ("2", 2), (TypeError, r".*invalid, must be a.*"), id='NuthKaab method: ("2", 2) initial shift'
+                ("2", 2), (TypeError, r".*must be a tuple of exactly*"), id='NuthKaab method: ("2", 2) initial shift'
             ),
             pytest.param(
                 (2, 3, 4, 5),
-                (TypeError, r".*invalid, must be a.*"),
+                (TypeError, r".*must be a tuple of exactly*"),
                 id="NuthKaab method: (2, 3, 4, 5) initial shift",
             ),
         ],

@@ -1780,7 +1780,7 @@ class AffineCoreg(Coreg):
                 and (len(initial_shift) == 2 or len(initial_shift) == 3)
                 and all(isinstance(val, (float, int)) for val in initial_shift)
             ):
-                raise ValueError("Argument `initial_shift` must be a tuple of exactly two or three numerical values.")
+                raise TypeError("Argument `initial_shift` must be a tuple of exactly two or three numerical values.")
 
             if len(initial_shift) == 2:
                 initial_shift += (0,)
