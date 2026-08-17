@@ -267,7 +267,6 @@ class TestBiasCorr:
         elev_fit_args = fit_args.copy()
         bias_vars_dict = {"elevation": self.ref}
         elev_fit_args.update({"bias_vars": bias_vars_dict})
-
         # Run with input parameter, and using only 100 subsamples for speed
         bcorr.fit(**elev_fit_args, subsample=1000, random_state=42)
 

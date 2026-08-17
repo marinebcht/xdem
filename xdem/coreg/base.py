@@ -1984,7 +1984,6 @@ def _check_type(value: Any, expected_type: tuple[Any, ...]) -> bool:
     # Get type of expected_type
     origin_type = get_origin(expected_type)
     print("_check_type", value, "( de type ", type(value), ") avec expected type", expected_type, "->", origin_type)
-    # Expected type is a callable
     if origin_type in (Callable, collections.abc.Callable):
         print("   => callable")
         return callable(value)
@@ -2040,6 +2039,8 @@ def _check_type(value: Any, expected_type: tuple[Any, ...]) -> bool:
         )
 
     print("   => isinstance")
+    print(value)
+    print(expected_type)
     return isinstance(value, expected_type)
 
 
