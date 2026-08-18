@@ -406,13 +406,11 @@ class Workflows(ABC):
                         inlier_mask = inlier_mask.reproject(dem, silent=True)
 
                     except rasterio.errors.RasterioIOError as raster_error:
-                        errors = ExceptionGroup(
-                            f"Could not read {mask_path!r} as either a vector or raster mask.",
-                            [vector_error, raster_error],
-                        )
                         raise ValueError(
-                            "You provided a 'path_to_mask' value that is not recognised as a mask."
-                        ) from errors
+                            f"You provided a 'path_to_mask' value that is not recognised as a mask. "
+                            f"Vector error: {vector_error}. "
+                            f"Raster error: {raster_error}."
+                        ) from raster_error
 
             return dem, inlier_mask, mask_path
         else:

@@ -389,7 +389,7 @@ def test_load_dem_mask(tmp_path):
 
     # path_to_mask = text file
     with open(tmp_path / "example.txt", "w") as f:
-        f.write("some texte")
+        f.write("some text")
     config_dem["path_to_mask"] = tmp_path / "example.txt"
     with pytest.raises(ValueError, match="not recognised as a mask"):
         Workflows.load_dem(config_dem)
