@@ -2065,7 +2065,14 @@ class Coreg:
         """Summarize information about this coregistration."""
 
         # Define max tabulation: longest name + 2 spaces
-        tab = np.max([len(v) for v in dict_key_to_str.values()]) + 2
+        keys_ = list(dict_key_to_str.values())
+
+        if "0_0" in self._meta["outputs"]:
+            keys_.remove(dict_key_to_str["shift_x"])
+            keys_.remove(dict_key_to_str["shift_y"])
+            keys_.remove(dict_key_to_str["shift_z"])
+
+        tab = np.max([len(v) for v in dict_key_to_str.values()]) + 4
 
         # Get list of existing deepest level keys in this coreg metadata
         def recursive_items(dictionary: Mapping[str, Any]) -> Iterable[tuple[str, Any]]:
@@ -2160,9 +2167,52 @@ class Coreg:
                             for k, v in existing_level_keys
                         ]
             if "0_0" in self._meta["outputs"]:
-                for bloc in self._meta["outputs"].keys():
-                    shifts = [f"{v:.2f}" for v in self._meta["outputs"][bloc].values()]
-                    outputs_str += f"    {bloc}: [{', '.join(shifts)}]\n"
+                outputs_str += f"  Affine\n"
+
+                blocks = self._meta["outputs"].keys()
+                keys = self._meta["outputs"]["0_0"].keys()
+
+                for key in keys:
+                    outputs_str += f"    shift_x:".ljust(tab) + f"{format_coregdict_values(dict_key_to_str[key], tab)}\n"
+
+
+                shifts = []
+                for key in keys:
+                    shifts_key = []
+                    for bloc in blocks:
+                        shifts_key.append(str(float(self._meta["outputs"][bloc][key])))
+                    shifts.append(shifts_key)
+
+                shifts = [list(colonne) for colonne in zip(*shifts)]
+
+
+                largeurs = [
+                    max(len(str(ligne[j])) for ligne in shifts)
+                    for j in range(len(shifts[0]))
+                ]
+                print (largeurs)
+                """
+                outputs_str += f"    Shift:".ljust(tab) + ", ".join(
+                        str(val).rjust(largeurs[k])
+                        for k, key in enumerate(shifts[b])
+                    ) + "\n"
+                """
+
+                outputs_str += f"    Blocks".ljust(tab) + ", ".join(
+                    str(key).rjust(largeurs[k])
+                    for k, key in enumerate(keys)
+                ) + "\n"
+
+                for b, bloc in enumerate(blocks):
+
+                    outputs_str += f"      {bloc}:".ljust(tab) + ", ".join(
+                        str(key).rjust(largeurs[k])
+                        for k, key in enumerate(shifts[b])
+                    ) + "\n"
+
+
+
+                #outputs_str += f"    Block {bloc}: [{', '.join(shifts)}]\n"
 
         elif not self._fit_called:
             outputs_str += ["  None yet (fit not called)"]
