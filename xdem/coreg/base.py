@@ -2173,40 +2173,33 @@ class Coreg:
                 keys = self._meta["outputs"]["0_0"].keys()
 
                 for key in keys:
-                    outputs_str += f"    shift_x:".ljust(tab) + f"{format_coregdict_values(dict_key_to_str[key], tab)}\n"
-
+                    outputs_str += f"    {key}:".ljust(tab) + f"{format_coregdict_values(dict_key_to_str[key], tab)}\n"
 
                 shifts = []
-                for key in keys:
-                    shifts_key = []
-                    for bloc in blocks:
-                        shifts_key.append(str(float(self._meta["outputs"][bloc][key])))
-                    shifts.append(shifts_key)
+                for b, bloc in enumerate(blocks):
+                    shifts_bloc = []
+                    for key in keys:
+                        shifts_bloc.append(str(float(self._meta["outputs"][bloc][key])))
+                    shifts.append(shifts_bloc)
 
-                shifts = [list(colonne) for colonne in zip(*shifts)]
+                #shifts = [list(colonne) for colonne in zip(*shifts)]
 
 
-                largeurs = [
+                tab_shifts = [
                     max(len(str(ligne[j])) for ligne in shifts)
                     for j in range(len(shifts[0]))
                 ]
-                print (largeurs)
-                """
-                outputs_str += f"    Shift:".ljust(tab) + ", ".join(
-                        str(val).rjust(largeurs[k])
-                        for k, key in enumerate(shifts[b])
-                    ) + "\n"
-                """
+
 
                 outputs_str += f"    Blocks".ljust(tab) + ", ".join(
-                    str(key).rjust(largeurs[k])
+                    str(key).rjust(tab_shifts[k])
                     for k, key in enumerate(keys)
                 ) + "\n"
 
                 for b, bloc in enumerate(blocks):
 
                     outputs_str += f"      {bloc}:".ljust(tab) + ", ".join(
-                        str(key).rjust(largeurs[k])
+                        str(key).rjust(tab_shifts[k])
                         for k, key in enumerate(shifts[b])
                     ) + "\n"
 

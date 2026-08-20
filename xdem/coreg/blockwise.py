@@ -197,9 +197,9 @@ class BlockwiseCoreg:
         self.shifts_x = []  # type: ignore
         self.shifts_y = []  # type: ignore
         self.shifts_z = []  # type: ignore
+        self.xy_blocks = []  # type: ignore
 
         for idx, (coreg, tile_coords) in enumerate(outputs_coreg):
-
             shift_x = coreg.meta["outputs"]["affine"].get("shift_x", np.nan)
             shift_y = coreg.meta["outputs"]["affine"].get("shift_y", np.nan)
             shift_z = coreg.meta["outputs"]["affine"].get("shift_z", np.nan)
@@ -216,7 +216,10 @@ class BlockwiseCoreg:
             self.shifts_y.append(shift_y)
             self.shifts_z.append(shift_z)
 
+            self.xy_blocks.append(tile_coords)
+
             tile_str = f"{rows_cols[idx][0]}_{rows_cols[idx][1]}"
+
             self.procstep._meta["outputs"][tile_str] = {  # type: ignore
                 "shift_x": shift_x,
                 "shift_y": shift_y,
@@ -229,6 +232,7 @@ class BlockwiseCoreg:
 
         # Flag that the fitting function has been called.
         self.procstep._fit_called = True
+
 
     @staticmethod
     def _ransac(
@@ -423,14 +427,32 @@ class BlockwiseCoreg:
     def info(self, as_str: bool = False) -> None | str:
         """Summarize information about this blockwise."""
 
+
         header_str = [
             "Blockwise information \n",
             f"  Block size fit:       {self.block_size_fit} \n",
             f"  Block size apply:     {self.block_size_apply} \n",
+            f"  Blocks repartition:    \n",
         ]
 
+        blocs = []
+        for b, bloc in enumerate(self.procstep._meta["outputs"]):
+            blocs.append( [f"{bloc} :", f"X:{self.xy_blocks[b][0]}-{self.xy_blocks[b][1]}", f"Y:{self.xy_blocks[b][2]}-{self.xy_blocks[b][3]}"])
+        print (blocs)
+        tab_coords = [
+            max(len(str(col[j])) for col in blocs) + 4
+            for j in range(len(blocs[0]))
+        ]
+        print (tab_coords)
+
+        for b, bloc in enumerate(blocs):
+            header_str += f"    " + "".join(
+                str(v).rjust(tab_coords[b])
+                for b, v in enumerate(bloc)
+            ) + "\n"
+
         step_str_tab = self.procstep.info(as_str=True).split("\n")
-        step_str_tab.insert(step_str_tab.index("Inputs"), f"  Blockwise?    True")
+        #step_str_tab.insert(step_str_tab.index("Inputs"), f"  Blockwise?    True")
 
         # Return as string or print (default)
         if as_str:
