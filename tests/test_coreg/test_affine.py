@@ -679,6 +679,15 @@ class TestAffineCoreg:
         Test that the initial_shift does not impact fit_and_apply process.
         """
         is1, is2, is3 = initial_shifts
-        """pipeline = (
-            coreg.NuthKaab(initial_shift=is1) + coreg.NuthKaab(initial_shift=is1) + coreg.NuthKaab(initial_shift=is3)
-        )"""
+        with pytest.warns(UserWarning, match="No initial shift can be xxx"):
+            pipeline = (
+                coreg.NuthKaab(initial_shift=is1)
+                + coreg.NuthKaab(initial_shift=is2)
+                + coreg.NuthKaab(initial_shift=is3)
+            )
+            if is1 is not None:
+                assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
+            else:
+                assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
+            assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
+            assert "initial_shift" not in pipeline.pipeline[2].meta["inputs"]["affine"]

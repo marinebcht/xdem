@@ -2010,11 +2010,10 @@ class Coreg:
         if not isinstance(other, Coreg):
             raise ValueError(f"Incompatible add type: {type(other)}. Expected 'Coreg' subclass")
 
-        """# Cancel possible initial shift(s) in CoregPipeline case
-        if "affine" in self.meta["inputs"] and "initial_shift" in self.meta["inputs"]["affine"]:
-            del self.meta["inputs"]["affine"]["initial_shift"]
+        # Cancel possible initial shift(s) in "other" coreg(s)
         if "affine" in other.meta["inputs"] and "initial_shift" in other.meta["inputs"]["affine"]:
-            del other.meta["inputs"]["affine"]["initial_shift"]"""
+            warnings.warn(message="No initial shift can be xxx", category=UserWarning)
+            del other.meta["inputs"]["affine"]["initial_shift"]
 
         return CoregPipeline([self, other])
 
@@ -2278,8 +2277,6 @@ class Coreg:
         :param random_state: Random state or seed number to use for calculations (to fix random sampling).
         """
 
-        print("def fit", random_state, transform)
-
         if weights is not None:
             raise NotImplementedError("Weights have not yet been implemented")
 
@@ -2451,7 +2448,6 @@ class Coreg:
 
         :returns: The transformed DEM.
         """
-        print("input apply", type(elev))
 
         if not self._fit_called and self._meta["outputs"]["affine"].get("matrix") is None:
             raise AssertionError(".fit() does not seem to have been called yet")
@@ -2488,7 +2484,6 @@ class Coreg:
         )
 
         # Only return object if raster or geodataframe, also return transform if object was an array
-        print("output apply", type(applied_elev))
         if isinstance(applied_elev, (Raster, gpd.GeoDataFrame, PointCloud)):
             return applied_elev
         else:
@@ -2905,9 +2900,6 @@ class CoregPipeline(Coreg):
         :param: Processing steps to run in the sequence they are given.
         """
         self.pipeline = pipeline
-        for coreg in pipeline[1:]:
-            if "affine" in coreg.meta["inputs"] and "initial_shift" in coreg.meta["inputs"]["affine"]:
-                logging.warning("No initial shift can be xxx")
 
         super().__init__()
 
@@ -3004,7 +2996,6 @@ class CoregPipeline(Coreg):
         **kwargs: Any,
     ) -> CoregType:
 
-        print("def fit pipeline", type(reference_elev))
         # Check if subsample arguments are different from their default value for any of the coreg steps:
         # get default value in argument spec and "subsample" stored in meta, and compare both are consistent
         argspec = [inspect.getfullargspec(c.__class__) for c in self.pipeline]
@@ -3036,7 +3027,7 @@ class CoregPipeline(Coreg):
 
         for i, coreg in enumerate(self.pipeline):
             logging.debug("Running pipeline step: %d / %d", i + 1, len(self.pipeline))
-            print("ici", i, type(reference_elev), transform is None)
+
             main_args_fit = {
                 "reference_elev": reference_elev,
                 "to_be_aligned_elev": tba_dem_mod,
@@ -3064,7 +3055,6 @@ class CoregPipeline(Coreg):
             # Step apply: one output for a geodataframe, two outputs for array/transform
             # We only run this step if it's not the last, otherwise it is unused!
             if i != (len(self.pipeline) - 1):
-                print(main_args_apply)
                 if isinstance(tba_dem_mod, (Raster, gpd.GeoDataFrame, PointCloud)):
                     tba_dem_mod = coreg.apply(**main_args_apply)
                 else:
@@ -3198,8 +3188,9 @@ class CoregPipeline(Coreg):
         pipelines = self.pipeline + other
 
         # Cancel possible initial shift(s) in CoregPipeline case
-        for method in pipelines:
+        for method in pipelines[1:]:
             if "affine" in method.meta["inputs"] and "initial_shift" in method.meta["inputs"]["affine"]:
+                warnings.warn(message="No initial shift can be xxx", category=UserWarning)
                 del method.meta["inputs"]["affine"]["initial_shift"]
 
         return CoregPipeline(pipelines)
