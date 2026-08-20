@@ -674,9 +674,8 @@ class TestAffineCoreg:
     @pytest.mark.parametrize(
         "initial_shifts",
         [[None, (8, 4, 0), None], [None, None, (8, 4, 0)], [(8, 4, 0), (8, 4, 0), None]],
-        "pre_coreg",
-        [True, False],
     )
+    @pytest.mark.parametrize("pre_coreg", [True, False])
     def test_pipeline_initial_shift_errors(self, initial_shifts: list[Any], pre_coreg: bool) -> None:
         """
         Test that coreg initial_shift management in function on its place in the pipeline
