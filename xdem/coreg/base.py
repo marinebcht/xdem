@@ -130,6 +130,7 @@ def _preprocess_coreg_fit_raster_raster(
     area_or_point: Literal["Area", "Point"] | None = None,
 ) -> tuple[NDArrayf, NDArrayf, NDArrayb, affine.Affine, rio.crs.CRS, Literal["Area", "Point"] | None]:
     """Pre-processing and checks of fit() for two raster input."""
+
     # Validate that both inputs are valid array-like (or Raster) types.
     if not all(isinstance(dem, (np.ndarray, gu.Raster)) for dem in (reference_dem, dem_to_be_aligned)):
         raise ValueError(
@@ -387,7 +388,6 @@ def _preprocess_coreg_fit(
 
     # If both inputs are points, simply reproject to the same CRS
     else:
-
         ref_elev = reference_elev if isinstance(reference_elev, gpd.GeoDataFrame) else reference_elev.ds  # type: ignore
         tba_elev = (
             to_be_aligned_elev
@@ -2010,7 +2010,7 @@ class Coreg:
         if not isinstance(other, Coreg):
             raise ValueError(f"Incompatible add type: {type(other)}. Expected 'Coreg' subclass")
 
-        # Cancel possible initial shift(s) in "other" coreg(s)
+        # Cancel possible initial shift(s) in coreg(s) in "other"
         if "affine" in other.meta["inputs"] and "initial_shift" in other.meta["inputs"]["affine"]:
             warnings.warn(message="No initial shift can be xxx", category=UserWarning)
             del other.meta["inputs"]["affine"]["initial_shift"]
@@ -2306,18 +2306,15 @@ class Coreg:
         # Apply the shift to the source dem if given
         initial_shift_apply = False
         if self._meta["inputs"]["affine"].get("initial_shift") is not None:
+            shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
+            shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
 
             # shift_z is currently always equal to zero
             if isinstance(reference_elev, gu.Raster):
-                shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
-                shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
                 reference_elev = reference_elev.translate(-shift_x, -shift_y)  # type: ignore
                 initial_shift_apply = True
 
             else:
-                shift_x = self._meta["inputs"]["affine"]["initial_shift"][0]  # type: ignore
-                shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
-
                 transform = _translate(transform, xoff=-shift_x, yoff=-shift_y)
                 initial_shift_apply = True
 
@@ -2353,8 +2350,6 @@ class Coreg:
                 bias_vars[var] = gu.raster.get_array_and_mask(bias_vars[var])[0]
 
             main_args.update({"bias_vars": bias_vars})
-
-        main_args["area_or_point"] = "area"
 
         # Run the associated fitting function, which has fallback logic for "raster-raster", "raster-point" or
         # "point-point" depending on what is available for a certain Coreg function
@@ -2448,7 +2443,6 @@ class Coreg:
 
         :returns: The transformed DEM.
         """
-
         if not self._fit_called and self._meta["outputs"]["affine"].get("matrix") is None:
             raise AssertionError(".fit() does not seem to have been called yet")
 
@@ -3013,16 +3007,6 @@ class CoregPipeline(Coreg):
             # Filter warnings of individual pipelines now that the one above was raised
             warnings.filterwarnings("ignore", message="Subsample argument passed to*", category=UserWarning)
 
-        """# Pre-process the inputs, by reprojecting and subsampling, without any subsampling (done in each step)
-        ref_dem, tba_dem, inlier_mask, transform, crs, area_or_point, z_name = _preprocess_coreg_fit(
-            reference_elev=reference_elev,
-            to_be_aligned_elev=to_be_aligned_elev,
-            inlier_mask=inlier_mask,
-            transform=transform,
-            crs=crs,
-            area_or_point=area_or_point,
-            z_name=z_name,
-        )"""
         tba_dem_mod = to_be_aligned_elev.copy()
 
         for i, coreg in enumerate(self.pipeline):
@@ -3187,7 +3171,7 @@ class CoregPipeline(Coreg):
 
         pipelines = self.pipeline + other
 
-        # Cancel possible initial shift(s) in CoregPipeline case
+        # Cancel possible initial shift(s) in coreg(s) in "other"
         for method in pipelines[1:]:
             if "affine" in method.meta["inputs"] and "initial_shift" in method.meta["inputs"]["affine"]:
                 warnings.warn(message="No initial shift can be xxx", category=UserWarning)
