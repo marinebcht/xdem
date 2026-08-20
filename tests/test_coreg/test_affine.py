@@ -681,7 +681,7 @@ class TestAffineCoreg:
         Test that coreg initial_shift management in function on its place in the pipeline
         """
         is1, is2, is3 = initial_shifts
-        with pytest.warns(UserWarning, match="No initial shift can be xxx"):
+        with pytest.warns(UserWarning, match="No initial shift can be"):
             if pre_coreg:
                 pipeline = (
                     coreg.VerticalShift()

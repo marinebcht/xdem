@@ -3173,7 +3173,11 @@ class CoregPipeline(Coreg):
         # Cancel possible initial shift(s) in coreg(s) in "other"
         for method in pipelines[1:]:
             if "affine" in method.meta["inputs"] and "initial_shift" in method.meta["inputs"]["affine"]:
-                warnings.warn(message="No initial shift can be xxx", category=UserWarning)
+                warnings.warn(
+                    message="No initial shift can be initialized in a coregistration pipeline other "
+                    "than for the first element.",
+                    category=UserWarning,
+                )
                 del method.meta["inputs"]["affine"]["initial_shift"]
 
         return CoregPipeline(pipelines)
