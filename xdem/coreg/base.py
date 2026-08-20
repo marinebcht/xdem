@@ -2310,7 +2310,7 @@ class Coreg:
             shift_y = self._meta["inputs"]["affine"]["initial_shift"][1]  # type: ignore
 
             # shift_z is currently always equal to zero
-            if isinstance(reference_elev, gu.Raster):
+            if isinstance(reference_elev, (gu.Raster, gpd.GeoDataFrame, gu.PointCloud)):
                 reference_elev = reference_elev.translate(-shift_x, -shift_y)  # type: ignore
                 initial_shift_apply = True
             else:
