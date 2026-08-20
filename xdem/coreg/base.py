@@ -2313,7 +2313,6 @@ class Coreg:
             if isinstance(reference_elev, gu.Raster):
                 reference_elev = reference_elev.translate(-shift_x, -shift_y)  # type: ignore
                 initial_shift_apply = True
-
             else:
                 transform = _translate(transform, xoff=-shift_x, yoff=-shift_y)
                 initial_shift_apply = True

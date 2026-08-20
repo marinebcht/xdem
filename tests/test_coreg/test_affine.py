@@ -672,22 +672,34 @@ class TestAffineCoreg:
         assert [pipeline.pipeline[1].meta["outputs"]["affine"][k] for k in shifts] == shifts_out_nk2  # type: ignore
 
     @pytest.mark.parametrize(
-        "initial_shifts", [[None, (8, 4, 0), None], [None, None, (8, 4, 0)], [(8, 4, 0), (8, 4, 0), None]]
+        "initial_shifts",
+        [[None, (8, 4, 0), None], [None, None, (8, 4, 0)], [(8, 4, 0), (8, 4, 0), None]],
+        "pre_coreg",
+        [True, False],
     )
-    def test_pipeline_initial_shift_errors(self, initial_shifts: list[Any]) -> None:
+    def test_pipeline_initial_shift_errors(self, initial_shifts: list[Any], pre_coreg: bool) -> None:
         """
-        Test that the initial_shift does not impact fit_and_apply process.
+        Test that coreg initial_shift management in function on its place in the pipeline
         """
         is1, is2, is3 = initial_shifts
         with pytest.warns(UserWarning, match="No initial shift can be xxx"):
-            pipeline = (
-                coreg.NuthKaab(initial_shift=is1)
-                + coreg.NuthKaab(initial_shift=is2)
-                + coreg.NuthKaab(initial_shift=is3)
-            )
-            if is1 is not None:
-                assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
+            if pre_coreg:
+                pipeline = (
+                    coreg.VerticalShift()
+                    + coreg.NuthKaab(initial_shift=is1)
+                    + coreg.NuthKaab(initial_shift=is2)
+                    + coreg.NuthKaab(initial_shift=is3)
+                )
             else:
-                assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
-            assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
-            assert "initial_shift" not in pipeline.pipeline[2].meta["inputs"]["affine"]
+                pipeline = (
+                    coreg.NuthKaab(initial_shift=is1)
+                    + coreg.NuthKaab(initial_shift=is2)
+                    + coreg.NuthKaab(initial_shift=is3)
+                )
+
+        if is1 is not None and pre_coreg is False:
+            assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
+        else:
+            assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
+        assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
+        assert "initial_shift" not in pipeline.pipeline[2].meta["inputs"]["affine"]
