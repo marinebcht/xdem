@@ -233,7 +233,6 @@ class BlockwiseCoreg:
         # Flag that the fitting function has been called.
         self.procstep._fit_called = True
 
-
     @staticmethod
     def _ransac(
         x_coords: NDArrayf,
@@ -427,32 +426,29 @@ class BlockwiseCoreg:
     def info(self, as_str: bool = False) -> None | str:
         """Summarize information about this blockwise."""
 
-
         header_str = [
             "Blockwise information \n",
             f"  Block size fit:       {self.block_size_fit} \n",
             f"  Block size apply:     {self.block_size_apply} \n",
-            f"  Blocks repartition:    \n",
+            "  Blocks repartition:    \n",
         ]
 
-        blocs = []
-        for b, bloc in enumerate(self.procstep._meta["outputs"]):
-            blocs.append( [f"{bloc} :", f"X:{self.xy_blocks[b][0]}-{self.xy_blocks[b][1]}", f"Y:{self.xy_blocks[b][2]}-{self.xy_blocks[b][3]}"])
-        print (blocs)
-        tab_coords = [
-            max(len(str(col[j])) for col in blocs) + 4
-            for j in range(len(blocs[0]))
-        ]
-        print (tab_coords)
+        blocks = []
+        for b, block in enumerate(self.procstep._meta["outputs"]):
+            blocks.append(
+                [
+                    f"{block} :",
+                    f"X:{self.xy_blocks[b][0]}-{self.xy_blocks[b][1]}",
+                    f"Y:{self.xy_blocks[b][2]}-{self.xy_blocks[b][3]}",
+                ]
+            )
 
-        for b, bloc in enumerate(blocs):
-            header_str += f"    " + "".join(
-                str(v).rjust(tab_coords[b])
-                for b, v in enumerate(bloc)
-            ) + "\n"
+        tab_coords = [max(len(str(col[j])) for col in blocks) + 4 for j in range(len(blocks[0]))]
+
+        for block in blocks:
+            header_str += "    " + "".join(str(v).rjust(tab_coords[b]) for b, v in enumerate(block)) + "\n"
 
         step_str_tab = self.procstep.info(as_str=True).split("\n")
-        #step_str_tab.insert(step_str_tab.index("Inputs"), f"  Blockwise?    True")
 
         # Return as string or print (default)
         if as_str:

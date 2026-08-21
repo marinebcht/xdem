@@ -2167,7 +2167,7 @@ class Coreg:
                             for k, v in existing_level_keys
                         ]
             if "0_0" in self._meta["outputs"]:
-                outputs_str += f"  Affine\n"
+                outputs_str += "  Affine\n"
 
                 blocks = self._meta["outputs"].keys()
                 keys = self._meta["outputs"]["0_0"].keys()
@@ -2176,36 +2176,29 @@ class Coreg:
                     outputs_str += f"    {key}:".ljust(tab) + f"{format_coregdict_values(dict_key_to_str[key], tab)}\n"
 
                 shifts = []
-                for b, bloc in enumerate(blocks):
-                    shifts_bloc = []
+                for block in blocks:
+                    shifts_block = []
                     for key in keys:
-                        shifts_bloc.append(str(float(self._meta["outputs"][bloc][key])))
-                    shifts.append(shifts_bloc)
+                        shifts_block.append(str(float(self._meta["outputs"][block][key])))
+                    shifts.append(shifts_block)
 
-                #shifts = [list(colonne) for colonne in zip(*shifts)]
+                # shifts = [list(colonne) for colonne in zip(*shifts)]
 
+                tab_shifts = [max(len(str(ligne[j])) for ligne in shifts) for j in range(len(shifts[0]))]
 
-                tab_shifts = [
-                    max(len(str(ligne[j])) for ligne in shifts)
-                    for j in range(len(shifts[0]))
-                ]
+                outputs_str += (
+                    "    Blocks".ljust(tab)
+                    + ", ".join(str(key).rjust(tab_shifts[k]) for k, key in enumerate(keys))
+                    + "\n"
+                )
 
+                for b, block in enumerate(blocks):
 
-                outputs_str += f"    Blocks".ljust(tab) + ", ".join(
-                    str(key).rjust(tab_shifts[k])
-                    for k, key in enumerate(keys)
-                ) + "\n"
-
-                for b, bloc in enumerate(blocks):
-
-                    outputs_str += f"      {bloc}:".ljust(tab) + ", ".join(
-                        str(key).rjust(tab_shifts[k])
-                        for k, key in enumerate(shifts[b])
-                    ) + "\n"
-
-
-
-                #outputs_str += f"    Block {bloc}: [{', '.join(shifts)}]\n"
+                    outputs_str += (
+                        f"      {block}:".ljust(tab)
+                        + ", ".join(str(key).rjust(tab_shifts[k]) for k, key in enumerate(shifts[b]))
+                        + "\n"
+                    )
 
         elif not self._fit_called:
             outputs_str += ["  None yet (fit not called)"]
