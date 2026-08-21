@@ -2001,6 +2001,7 @@ def _check_type(value: Any, expected_type: tuple[Any, ...]) -> bool:
 
     import sys
 
+    print("sys.version_info.minor", sys.version_info.minor)
     if sys.version_info.minor >= 9:
         from numpy.typing import NDArray
 
