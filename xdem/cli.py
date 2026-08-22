@@ -112,7 +112,7 @@ def main(arg_list: list[str] | None = None) -> None:
         "--output",
         help="(Optional) Path to output folder (with --config, overrides configuration file)",
     )
-    
+
     args = parser.parse_args(args=arg_list)
 
     if args.command is None:
