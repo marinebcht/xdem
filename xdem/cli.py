@@ -16,9 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import argparse
 import logging
+import sys
 
 from xdem._misc import import_optional
 from xdem.workflows import Accuracy, Topo
