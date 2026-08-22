@@ -16,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import sys
 import argparse
 import logging
 
@@ -113,12 +113,12 @@ def main(arg_list: list[str] | None = None) -> None:
         help="(Optional) Path to output folder (with --config, overrides configuration file)",
     )
 
-    args = parser.parse_args(args=arg_list)
-
     # Print help for 'xdem' without arguments
-    if args.command is None:
-        parser.print_help()
-        return
+    arg_list = sys.argv[1:] if arg_list is None else arg_list
+    if not arg_list:
+        arg_list = ["--help"]
+
+    args = parser.parse_args(args=arg_list)
 
     # Raise error for xdem --output without a --config
     if args.command is not None and args.output and not args.config:
