@@ -39,7 +39,11 @@ pytest.importorskip("cerberus")
 
 
 def test_xdem():
-    subprocess.run(["xdem"])
+    """Check if running simply 'xdem' in CLI does indeed show the help, without failure."""
+    result = subprocess.run(["xdem"], capture_output=True, text=True)
+
+    assert result.returncode == 0
+    assert "usage:" in result.stdout.lower()
 
 
 @pytest.mark.parametrize("help_arg", [[], ["-h"], ["--help"]])
