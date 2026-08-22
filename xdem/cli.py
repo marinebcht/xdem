@@ -115,9 +115,14 @@ def main(arg_list: list[str] | None = None) -> None:
 
     args = parser.parse_args(args=arg_list)
 
+    # Print help for 'xdem' without arguments
     if args.command is None:
         parser.print_help()
         return
+
+    # Raise error for xdem --output without a --config
+    if args.command is not None and args.output and not args.config:
+        parser.error("Argument --output requires --config.")
 
     # Instance logger
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
