@@ -112,11 +112,12 @@ def main(arg_list: list[str] | None = None) -> None:
         "--output",
         help="(Optional) Path to output folder (with --config, overrides configuration file)",
     )
-
-    if arg_list is not None and not len(arg_list):
-        arg_list = ["--help"]
-
+    
     args = parser.parse_args(args=arg_list)
+
+    if args.command is None:
+        parser.print_help()
+        return
 
     # Instance logger
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
