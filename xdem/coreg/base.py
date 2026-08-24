@@ -2010,11 +2010,6 @@ class Coreg:
         if not isinstance(other, Coreg):
             raise ValueError(f"Incompatible add type: {type(other)}. Expected 'Coreg' subclass")
 
-        # Cancel possible initial shift(s) in coreg(s) in "other"
-        if "affine" in other.meta["inputs"] and "initial_shift" in other.meta["inputs"]["affine"]:
-            warnings.warn(message="No initial shift can be xxx", category=UserWarning)
-            del other.meta["inputs"]["affine"]["initial_shift"]
-
         return CoregPipeline([self, other])
 
     @property
@@ -2892,7 +2887,26 @@ class CoregPipeline(Coreg):
 
         :param: Processing steps to run in the sequence they are given.
         """
-        self.pipeline = pipeline
+
+        def delete_is(pipeline: CoregPipeline, init: bool = False):
+            """Delete initial shift according to its place in the pipeline"""
+            for i, step in enumerate(pipeline):
+                if i == 0 and not init:
+                    continue
+
+                if not isinstance(step, CoregPipeline):
+                    if "affine" in step.meta["inputs"] and "initial_shift" in step.meta["inputs"]["affine"]:
+                        warnings.warn(
+                            message="No initial shift can be initialized in a coregistration pipeline other "
+                            "than for the first element.",
+                            category=UserWarning,
+                        )
+                        del step.meta["inputs"]["affine"]["initial_shift"]
+                else:
+                    delete_is(step, init=True)
+            return pipeline
+
+        self.pipeline = delete_is(pipeline)
 
         super().__init__()
 
@@ -3169,16 +3183,6 @@ class CoregPipeline(Coreg):
             other = [other]
 
         pipelines = self.pipeline + other
-
-        # Cancel possible initial shift(s) in coreg(s) in "other"
-        for method in pipelines[1:]:
-            if "affine" in method.meta["inputs"] and "initial_shift" in method.meta["inputs"]["affine"]:
-                warnings.warn(
-                    message="No initial shift can be initialized in a coregistration pipeline other "
-                    "than for the first element.",
-                    category=UserWarning,
-                )
-                del method.meta["inputs"]["affine"]["initial_shift"]
 
         return CoregPipeline(pipelines)
 

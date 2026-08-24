@@ -673,32 +673,69 @@ class TestAffineCoreg:
 
     @pytest.mark.parametrize(
         "initial_shifts",
-        [[None, (8, 4, 0), None], [None, None, (8, 4, 0)], [(8, 4, 0), (8, 4, 0), None]],
+        [[None, (1, 1, 0), None], [None, None, (2, 2, 0)], [(3, 3, 0), (4, 4, 0), None]],
     )
-    @pytest.mark.parametrize("pre_coreg", [True, False])
-    def test_pipeline_initial_shift_errors(self, initial_shifts: list[Any], pre_coreg: bool) -> None:
+    def test_pipeline_initial_shift_errors(self, initial_shifts: list[Any]) -> None:
         """
         Test that coreg initial_shift management in function on its place in the pipeline
         """
-        is1, is2, is3 = initial_shifts
-        with pytest.warns(UserWarning, match="No initial shift can be"):
-            if pre_coreg:
-                pipeline = (
-                    coreg.VerticalShift()
-                    + coreg.NuthKaab(initial_shift=is1)
-                    + coreg.NuthKaab(initial_shift=is2)
-                    + coreg.NuthKaab(initial_shift=is3)
-                )
-            else:
-                pipeline = (
-                    coreg.NuthKaab(initial_shift=is1)
-                    + coreg.NuthKaab(initial_shift=is2)
-                    + coreg.NuthKaab(initial_shift=is3)
-                )
 
-        if is1 is not None and pre_coreg is False:
-            assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
-        else:
+        is1, is2, is3 = initial_shifts
+
+        # Test N&K series
+        with pytest.warns(UserWarning, match="No initial shift can be"):
+            pipeline = (
+                coreg.NuthKaab(initial_shift=is1)
+                + coreg.NuthKaab(initial_shift=is2)
+                + coreg.NuthKaab(initial_shift=is3)
+            )
+
+        if is1 is None:
             assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
+        else:
+            assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
         assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
         assert "initial_shift" not in pipeline.pipeline[2].meta["inputs"]["affine"]
+
+        # CoregPipeline with a list of N&K
+        with pytest.warns(UserWarning, match="No initial shift can be"):
+            pipeline = coreg.CoregPipeline(
+                [
+                    coreg.NuthKaab(initial_shift=is1),
+                    coreg.NuthKaab(initial_shift=is2),
+                    coreg.NuthKaab(initial_shift=is3),
+                ]
+            )
+
+        if is1 is None:
+            assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
+        else:
+            assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
+        assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
+        assert "initial_shift" not in pipeline.pipeline[2].meta["inputs"]["affine"]
+
+        # Test N&K series with VerticalShift before
+        with pytest.warns(UserWarning, match="No initial shift can be"):
+            pipeline = (
+                coreg.VerticalShift()
+                + coreg.NuthKaab(initial_shift=is1)
+                + coreg.NuthKaab(initial_shift=is2)
+                + coreg.NuthKaab(initial_shift=is3)
+            )
+
+        assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
+        assert "initial_shift" not in pipeline.pipeline[1].meta["inputs"]["affine"]
+        assert "initial_shift" not in pipeline.pipeline[2].meta["inputs"]["affine"]
+
+        # Test nested CoregPipeline
+        with pytest.warns(UserWarning, match="No initial shift can be"):
+            pipeline = coreg.NuthKaab(initial_shift=is1) + coreg.CoregPipeline(
+                coreg.NuthKaab(initial_shift=is2) + coreg.NuthKaab(initial_shift=is3)
+            )
+
+            if is1 is None:
+                assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
+            else:
+                assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
+            assert "initial_shift" not in pipeline.pipeline[1].pipeline.pipeline[0].meta["inputs"]["affine"]
+            assert "initial_shift" not in pipeline.pipeline[1].pipeline.pipeline[1].meta["inputs"]["affine"]
