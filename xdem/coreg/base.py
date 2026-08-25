@@ -2888,7 +2888,7 @@ class CoregPipeline(Coreg):
         :param: Processing steps to run in the sequence they are given.
         """
 
-        def delete_is(pipeline: CoregPipeline, init: bool = False):
+        def delete_is(pipeline: list[Coreg], init: bool = False) -> list[Coreg]:
             """Delete initial shift according to its place in the pipeline"""
             for i, step in enumerate(pipeline):
                 if i == 0 and not init:
@@ -2903,7 +2903,7 @@ class CoregPipeline(Coreg):
                         )
                         del step.meta["inputs"]["affine"]["initial_shift"]
                 else:
-                    delete_is(step, init=True)
+                    delete_is(step, init=True)  # type: ignore
             return pipeline
 
         self.pipeline = delete_is(pipeline)

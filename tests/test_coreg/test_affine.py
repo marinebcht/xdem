@@ -729,8 +729,14 @@ class TestAffineCoreg:
 
         # Test nested CoregPipeline
         with pytest.warns(UserWarning, match="No initial shift can be"):
-            pipeline = coreg.NuthKaab(initial_shift=is1) + coreg.CoregPipeline(
+            """pipeline = coreg.NuthKaab(initial_shift=is1) + coreg.CoregPipeline(
                 coreg.NuthKaab(initial_shift=is2) + coreg.NuthKaab(initial_shift=is3)
+            )"""
+            pipeline = coreg.CoregPipeline(
+                [
+                    coreg.NuthKaab(initial_shift=is1),
+                    coreg.CoregPipeline([coreg.NuthKaab(initial_shift=is2), coreg.NuthKaab(initial_shift=is3)]),
+                ]
             )
 
             if is1 is None:
