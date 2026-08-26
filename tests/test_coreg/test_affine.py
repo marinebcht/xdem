@@ -743,5 +743,6 @@ class TestAffineCoreg:
                 assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
             else:
                 assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == is1
-            assert "initial_shift" not in pipeline.pipeline[1].pipeline.pipeline[0].meta["inputs"]["affine"]
-            assert "initial_shift" not in pipeline.pipeline[1].pipeline.pipeline[1].meta["inputs"]["affine"]
+
+            assert "initial_shift" not in pipeline.pipeline[1].pipeline[0].meta["inputs"]["affine"]
+            assert "initial_shift" not in pipeline.pipeline[1].pipeline[1].meta["inputs"]["affine"]
