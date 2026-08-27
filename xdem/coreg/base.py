@@ -2888,25 +2888,31 @@ class CoregPipeline(Coreg):
         :param: Processing steps to run in the sequence they are given.
         """
 
-        def delete_is(pipeline: list[Coreg], init: bool = False) -> list[Coreg]:
-            """Delete initial shift according to its place in the pipeline"""
-            for i, step in enumerate(pipeline):
-                if i == 0 and not init:
-                    continue
+        def put_coreg_in_series(pipeline: list[Coreg]) -> list[Coreg]:
+            """
+            Translate all nested CoregPipeline in Coreg series
 
+            :param pipeline: Processing steps to run in the sequence they are given.
+            :return: list of simple Coreg(s).
+            """
+            list_coreg = []
+            for step in pipeline:
                 if not isinstance(step, CoregPipeline):
-                    if "affine" in step.meta["inputs"] and "initial_shift" in step.meta["inputs"]["affine"]:
-                        warnings.warn(
-                            message="No initial shift can be initialized in a coregistration pipeline other "
-                            "than for the first element.",
-                            category=UserWarning,
-                        )
-                        del step.meta["inputs"]["affine"]["initial_shift"]
+                    list_coreg.append(step)
                 else:
-                    delete_is(step, init=True)  # type: ignore
-            return pipeline
+                    list_coreg = list_coreg + put_coreg_in_series(step)  # type: ignore
+            return list_coreg
 
-        self.pipeline = delete_is(pipeline)
+        self.pipeline = put_coreg_in_series(pipeline)
+
+        for i, step in enumerate(self.pipeline):
+            if i > 0 and "affine" in step.meta["inputs"] and "initial_shift" in step.meta["inputs"]["affine"]:
+                warnings.warn(
+                    message="No initial shift can be initialized in a coregistration pipeline other "
+                    "than for the first element.",
+                    category=UserWarning,
+                )
+                del step.meta["inputs"]["affine"]["initial_shift"]
 
         super().__init__()
 
