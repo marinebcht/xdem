@@ -2908,8 +2908,9 @@ class CoregPipeline(Coreg):
         for i, step in enumerate(self.pipeline):
             if i > 0 and "affine" in step.meta["inputs"] and "initial_shift" in step.meta["inputs"]["affine"]:
                 warnings.warn(
-                    message="No initial shift can be initialized in a coregistration pipeline other "
-                    "than for the first element.",
+                    message="No initial shift can be defined in a coregistration pipeline other than for the first "
+                    f"step. Overidding to initial_shift=None for step number {i}. Remove initial shift parameters"
+                    " outside of the first step to silence this warning.",
                     category=UserWarning,
                 )
                 del step.meta["inputs"]["affine"]["initial_shift"]
