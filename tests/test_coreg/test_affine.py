@@ -17,7 +17,7 @@ from geoutils._typing import Number
 from geoutils.raster.geotransformations import _translate
 from scipy.ndimage import binary_dilation
 
-from xdem import coreg, coregpipeline, examples
+from xdem import coreg, examples
 from xdem.coreg.affine import (
     AffineCoreg,
     _reproject_horizontal_shift_samecrs,
@@ -25,6 +25,7 @@ from xdem.coreg.affine import (
     matrix_from_translations_rotations,
     translations_rotations_from_matrix,
 )
+from xdem.coreg.base import CoregPipeline
 
 
 def load_examples() -> tuple[Raster, Raster, Vector]:
@@ -700,7 +701,7 @@ class TestAffineCoreg:
 
         is1, is2, is3 = initial_shifts
 
-        def test_results(pipeline: coregpipeline, is1: tuple[int, int, int] | None) -> None:
+        def test_results(pipeline: CoregPipeline, is1: tuple[int, int, int] | None) -> None:
             if is1 is None:
                 assert "initial_shift" not in pipeline.pipeline[0].meta["inputs"]["affine"]
             else:
