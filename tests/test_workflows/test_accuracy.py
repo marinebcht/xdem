@@ -375,6 +375,7 @@ def test_prepare_datas_with_overlap(get_accuracy_inputs_test, tmp_path, config):
 @pytest.mark.parametrize("process", [True, False])
 @pytest.mark.parametrize("sampling_grid", ["reference_elev", "to_be_aligned_elev"])
 def test_no_overlap(get_accuracy_inputs_test, tmp_path, process, sampling_grid):
+    tmp_path = Path("tmp_no_overlap")
     """Test coreg/no coreg processes when ref and tba do not overlap."""
     user_config = get_accuracy_inputs_test
     user_config["inputs"]["sampling_grid"] = sampling_grid
@@ -393,8 +394,13 @@ def test_no_overlap(get_accuracy_inputs_test, tmp_path, process, sampling_grid):
     tba_dem.to_file(tmp_path / "tba_cropped.tif")
     user_config["inputs"]["to_be_aligned_elev"]["path_to_elev"] = str(tmp_path / "tba_cropped.tif")
 
+    print(user_config)
     workflows = Accuracy(user_config)
-    with pytest.raises(ValueError, match="Reference and To-be-align elevations do not overlap."):
+    if process:
+        msg_error = "methods rely on elevation differencing"
+    else:
+        msg_error = "No differences can be calculated"
+    with pytest.raises(ValueError, match=msg_error):
         workflows.run()
 
 
