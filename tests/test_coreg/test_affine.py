@@ -680,7 +680,6 @@ class TestAffineCoreg:
 
         # Automatic pipeline
         pipeline = coreg.NuthKaab(initial_shift=initial_shift) + coreg.NuthKaab(initial_shift=None)
-        print(initial_shift)
         if initial_shift is not None:
             assert pipeline.pipeline[0].meta["inputs"]["affine"]["initial_shift"] == initial_shift
         else:
