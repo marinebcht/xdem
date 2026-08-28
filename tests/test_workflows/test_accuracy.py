@@ -375,7 +375,6 @@ def test_prepare_datas_with_overlap(get_accuracy_inputs_test, tmp_path, config):
 @pytest.mark.parametrize("process", [True, False])
 @pytest.mark.parametrize("sampling_grid", ["reference_elev", "to_be_aligned_elev"])
 def test_no_overlap(get_accuracy_inputs_test, tmp_path, process, sampling_grid):
-    tmp_path = Path("tmp_no_overlap")
     """Test coreg/no coreg processes when ref and tba do not overlap."""
     user_config = get_accuracy_inputs_test
     user_config["inputs"]["sampling_grid"] = sampling_grid
