@@ -204,8 +204,8 @@ class Accuracy(Workflows):
             msg_error = "Reference and to-be-aligned elevation datasets do not overlap horizontally. "
             if self.compute_coreg:
                 msg_error += (
-                    "All possible coregistration methods rely on elevation differencing, and thus"
-                    "produces only NaNs. "
+                    "All possible coregistration methods rely on elevation differencing, and thus "
+                    "produce only NaNs. "
                 )
             else:
                 msg_error += "No differences can be calculated. "
