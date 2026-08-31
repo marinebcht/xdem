@@ -200,6 +200,21 @@ class Accuracy(Workflows):
         elif sampling_grid == "to_be_aligned_elev":
             self.reference_elev = self.reference_elev.reproject(self.to_be_aligned_elev, silent=True)
 
+        if not self.reference_elev.get_stats("validcount") or not self.to_be_aligned_elev.get_stats("validcount"):
+            msg_error = "Reference and to-be-aligned elevation datasets do not overlap horizontally. "
+            if self.compute_coreg:
+                msg_error += (
+                    "All possible coregistration methods rely on elevation differencing, and thus "
+                    "produce only NaNs. "
+                )
+            else:
+                msg_error += "No differences can be calculated. "
+            msg_error += (
+                "If no large misalignment was expected, check the georeferencing of your data and re-set it "
+                "manually with 'set_crs()' or 'set_transform()'."
+            )
+            raise ValueError(msg_error)
+
         # Intersection
         logging.info("Computing intersection")
         coord_intersection = self.reference_elev.intersection(self.to_be_aligned_elev)
