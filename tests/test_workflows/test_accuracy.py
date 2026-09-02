@@ -30,6 +30,7 @@ import pandas as pd
 import pytest
 
 import xdem
+from xdem import coreg, DEM, open_dem
 from xdem.workflows import Accuracy
 from xdem.workflows.schemas import MIN_STATS
 from xdem.workflows.workflows import _ALIAS, Workflows
@@ -105,8 +106,8 @@ def test__get_stats(get_accuracy_inputs_config, tmp_path, stats_name, res):
     user_config["statistics"] = stats_name
     workflows = Accuracy(user_config)
 
-    dem = xdem.DEM(xdem.examples.get_path_test("longyearbyen_tba_dem"))
-    stats_gt = dem.get_stats(stats_name)
+    dem = open_dem(xdem.examples.get_path_test("longyearbyen_tba_dem"))
+    stats_gt = dem.dem.get_stats(stats_name)
 
     assert list(set(workflows._get_stats(dem).keys())) == list(set(res))  # type: ignore
     assert workflows._get_stats(dem) == {_ALIAS.get(k, k): v for k, v in stats_gt.items()}

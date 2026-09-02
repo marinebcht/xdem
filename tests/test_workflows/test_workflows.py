@@ -173,7 +173,7 @@ def test_generate_graph(get_topo_inputs_config, tmp_path):
     """
     Test generate_plot function
     """
-    dem = xdem.DEM(xdem.examples.get_path_test("longyearbyen_tba_dem"))
+    dem = xdem.open_dem(xdem.examples.get_path_test("longyearbyen_tba_dem"))
     filename = "test_generate_graph"
     title = "Test graph"
 
@@ -181,7 +181,7 @@ def test_generate_graph(get_topo_inputs_config, tmp_path):
     user_config["outputs"] = {"path": str(tmp_path)}
     workflows = Topo(user_config)
 
-    workflows.generate_plot(dem, filename=filename, title=title)
+    workflows.generate_plot(dem, filename=filename, title=title, label="")
     out = tmp_path / "plots" / f"{filename}.png"
     assert out.exists()
 
@@ -296,6 +296,11 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
         # Other outputs
         assert mask_path == config_dem["path_to_mask"]
         mask = gu.Vector(mask_path)
+        print (input_dem.dem.crs)
+        print ((~mask.create_mask(input_dem)).crs)
+        print (type(inlier_mask))
+        print (inlier_mask.crs)
+
         assert inlier_mask == ~mask.create_mask(input_dem.dem)
 
 

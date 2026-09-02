@@ -221,7 +221,9 @@ class Workflows(ABC):
             cmap = plt.get_cmap(name=kwargs["cmap"])
         else:
             cmap = plt.get_cmap(name="terrain")
+
         cmap.set_bad(color="k", alpha=None)
+        print (cmap)
 
         # Force figsize with the good ratio to prevent larger right axe if not filled
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])

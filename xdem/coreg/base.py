@@ -130,8 +130,11 @@ def _preprocess_coreg_fit_raster_raster(
 ) -> tuple[NDArrayf, NDArrayf, NDArrayb, affine.Affine, rio.crs.CRS, Literal["Area", "Point"] | None]:
     """Pre-processing and checks of fit() for two raster input."""
 
+    print (type(reference_dem))
+    print (type(dem_to_be_aligned))
+
     # Validate that both inputs are valid array-like (or Raster) types.
-    if not all(isinstance(dem, (np.ndarray, gu.Raster)) for dem in (reference_dem, dem_to_be_aligned)):
+    if not all(isinstance(dem, (np.ndarray, gu.Raster, gu.RasterAccessor)) for dem in (reference_dem, dem_to_be_aligned)):
         raise ValueError(
             "Both DEMs need to be array-like (implement a numpy array interface)."
             f"'reference_dem': {reference_dem}, 'dem_to_be_aligned': {dem_to_be_aligned}"
@@ -151,13 +154,14 @@ def _preprocess_coreg_fit_raster_raster(
                 raise ValueError("Input mask array can't be a different size array as input elevation.")
 
     # If both DEMs are Rasters, validate that 'dem_to_be_aligned' is in the right grid. Then extract its data.
-    if isinstance(dem_to_be_aligned, gu.Raster) and isinstance(reference_dem, gu.Raster):
+    if isinstance(dem_to_be_aligned, (gu.Raster, gu.RasterAccessor)) and isinstance(reference_dem, (gu.Raster, gu.RasterAccessor)):
+
         dem_to_be_aligned = dem_to_be_aligned.reproject(reference_dem, silent=True)
 
     # If both inputs are raster, cast their pixel interpretation and override any individual interpretation
     indiv_check = True
     new_aop = None
-    if isinstance(reference_dem, gu.Raster) and isinstance(dem_to_be_aligned, gu.Raster):
+    if isinstance(reference_dem, (gu.Raster, gu.RasterAccessor)) and isinstance(dem_to_be_aligned, (gu.Raster, gu.RasterAccessor)):
         # Casts pixel interpretation, raises a warning if they differ (can be silenced with global config)
         new_aop = _cast_pixel_interpretation(reference_dem.area_or_point, dem_to_be_aligned.area_or_point)
         if area_or_point is not None:
@@ -170,7 +174,7 @@ def _preprocess_coreg_fit_raster_raster(
     new_transform = None
     new_crs = None
     for name, dem in [("reference_dem", reference_dem), ("dem_to_be_aligned", dem_to_be_aligned)]:
-        if isinstance(dem, gu.Raster):
+        if isinstance(dem, (gu.Raster, gu.RasterAccessor)):
             # If a raster was passed, override the transform, reference raster has priority to set new_transform.
             if transform is None:
                 new_transform = dem.transform
@@ -332,13 +336,13 @@ def _preprocess_coreg_fit(
     """Pre-processing and checks of fit for any input."""
 
     for elev in (reference_elev, to_be_aligned_elev):
-        if not isinstance(elev, (np.ndarray, RasterType, xdem.DEM, gpd.GeoDataFrame, gu.PointCloud)):
+        if not isinstance(elev, (np.ndarray, gu.Raster, gu.RasterAccessor, gpd.GeoDataFrame, gu.PointCloud)):
             raise ValueError(
                 f"Input elevation data should be a raster, array, geodataframe or point cloud, " f"got {type(elev)}."
             )
 
     # If both inputs are raster or arrays, reprojection on the same grid is needed for raster-raster methods
-    if all(isinstance(elev, (np.ndarray, RasterType, xdem.DEM)) for elev in (reference_elev, to_be_aligned_elev)):
+    if all(isinstance(elev, (np.ndarray, gu.Raster, gu.RasterAccessor, xdem.DEM)) for elev in (reference_elev, to_be_aligned_elev)):
         ref_elev, tba_elev, inlier_mask, transform, crs, area_or_point = _preprocess_coreg_fit_raster_raster(
             reference_dem=reference_elev,
             dem_to_be_aligned=to_be_aligned_elev,
@@ -347,6 +351,7 @@ def _preprocess_coreg_fit(
             crs=crs,
             area_or_point=area_or_point,
         )
+        print (ref_elev, tba_elev, transform)
 
     # If one input is raster, and the other is point, we reproject the point data to the same CRS and extract arrays
     elif any(isinstance(dem, (np.ndarray, gu.Raster)) for dem in (reference_elev, to_be_aligned_elev)):
@@ -411,7 +416,7 @@ def _preprocess_coreg_apply(
 ) -> tuple[NDArrayf | gpd.GeoDataFrame, affine.Affine, rio.crs.CRS, str | None]:
     """Pre-processing and checks of apply for any input."""
 
-    if not isinstance(elev, (np.ndarray, Raster, gpd.GeoDataFrame, PointCloud)):
+    if not isinstance(elev, (np.ndarray, gu.Raster, gu.RasterAccessor, gpd.GeoDataFrame, PointCloud)):
         raise ValueError(
             f"Input elevation data should be a raster, array, geodataframe or point cloud, " f"got {type(elev)}."
         )
@@ -430,7 +435,7 @@ def _preprocess_coreg_apply(
     # If input is a raster or array
     else:
         # If input is raster
-        if isinstance(elev, gu.Raster):
+        if isinstance(elev, (gu.Raster, gu.RasterAccessor)):
             if transform is not None:
                 warnings.warn(f"DEM of type {type(elev)} overrides the given 'transform'")
             if crs is not None:
@@ -490,7 +495,7 @@ def _postprocess_coreg_apply_rst(
     applied_elev = applied_elev.astype("float32")
 
     # Set default dst_nodata
-    if isinstance(elev, gu.Raster):
+    if isinstance(elev, (gu.Raster, gu.RasterAccessor)):
         nodata = elev.nodata
     else:
         nodata = raster._default_nodata(elev.dtype)
@@ -505,7 +510,7 @@ def _postprocess_coreg_apply_rst(
 
         # Reproject the DEM from its out_transform onto the transform
         applied_rst = gu.Raster.from_array(applied_elev, out_transform, crs=crs, nodata=nodata)
-        if not isinstance(elev, gu.Raster):
+        if not isinstance(elev, (gu.Raster, gu.RasterAccessor)):
             match_rst = gu.Raster.from_array(elev, transform, crs=crs, nodata=nodata)
         else:
             match_rst = elev
@@ -518,13 +523,14 @@ def _postprocess_coreg_apply_rst(
     final_mask = np.logical_or(~np.isfinite(applied_elev), applied_elev == nodata)
 
     # If the DEM was a masked_array, copy the mask to the new DEM
-    if isinstance(elev, (np.ma.masked_array, gu.Raster)):
+    if isinstance(elev, (np.ma.masked_array, (gu.Raster, gu.RasterAccessor))):
         applied_elev = np.ma.masked_array(applied_elev, mask=final_mask)  # type: ignore
     else:
         applied_elev[final_mask] = np.nan
 
     # If the input was a Raster, returns a Raster, else returns array and transform
-    if isinstance(elev, gu.Raster):
+    if isinstance(elev, (gu.Raster, gu.RasterAccessor)):
+        print ("AAHHHH")
         out_dem = elev.from_array(applied_elev, out_transform, crs, nodata=elev.nodata)
         return out_dem, out_transform
     else:
@@ -2315,6 +2321,7 @@ class Coreg:
             initial_shift_apply = True
 
         # Pre-process the inputs, by reprojecting and converting to arrays
+        print(type(reference_elev), type(to_be_aligned_elev))
         ref_elev, tba_elev, inlier_mask, transform, crs, area_or_point, z_name = _preprocess_coreg_fit(
             reference_elev=reference_elev,
             to_be_aligned_elev=to_be_aligned_elev,
@@ -2473,8 +2480,12 @@ class Coreg:
             resampling=resampling,
         )
 
+
+
         # Only return object if raster or geodataframe, also return transform if object was an array
-        if isinstance(applied_elev, (Raster, gpd.GeoDataFrame, PointCloud)):
+        import xarray as xr
+        if isinstance(applied_elev, (gu.Raster, gu.RasterAccessor, xr.DataArray, gpd.GeoDataFrame, PointCloud)):
+            print ("IIIICIIIII")
             return applied_elev
         else:
             return applied_elev, out_transform
@@ -2597,6 +2608,8 @@ class Coreg:
             random_state=random_state,
             **fit_kwargs,
         )
+
+        print ("ICIII alalal")
         aligned_dem = self.apply(
             elev=to_be_aligned_elev,
             bias_vars=bias_vars,
@@ -3160,7 +3173,7 @@ class CoregPipeline(Coreg):
         )
 
         # Only return object if raster or geodataframe, also return transform if object was an array
-        if isinstance(applied_elev, (gu.Raster, gpd.GeoDataFrame, gu.PointCloud)):
+        if isinstance(applied_elev, (gu.Raster, gu.RasterAccessor, gpd.GeoDataFrame, gu.PointCloud)):
             return applied_elev
         else:
             return applied_elev, out_transform

@@ -405,6 +405,8 @@ class DEMBase(RasterBase):
         """
 
         src_dem = self.copy()
+        if type(src_dem) != type(self):
+            src_dem = src_dem.dem
 
         # Check inputs
         if not isinstance(coreg_method, Coreg):

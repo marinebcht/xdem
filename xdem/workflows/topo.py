@@ -62,8 +62,6 @@ class Topo(Workflows):
         Path(self.outputs_folder / "used_config.yaml").write_text(yaml_str, encoding="utf-8")
 
         self.config = self.remove_none(self.config)  # type: ignore
-        logging.info(self.dask)
-        logging.info(self.multiprocess)
 
     def _load_data(self) -> None:
         """
@@ -71,7 +69,6 @@ class Topo(Workflows):
         """
         self.dem, self.inlier_mask, path_to_mask = self.load_dem(self.config["inputs"]["reference_elev"], self.dask)
         vunit = vertical_unit_symbol(self.dem.dem.crs)
-        logging.info(self.dem)
 
         self.generate_plot(
             self.dem,
@@ -118,7 +115,7 @@ class Topo(Workflows):
                 attribute_extra = self.config_attributes.get(attr).get("extra_information", {})  # type: ignore
             attribute = from_str_to_fun[attr]()
             logging.info(f"Saving {attr} as a raster file ({attr}.tif)")
-            attribute.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
+            attribute.rst.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
 
     def generate_terrain_attributes_png(self) -> None:
         """

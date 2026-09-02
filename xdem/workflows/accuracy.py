@@ -158,8 +158,10 @@ class Accuracy(Workflows):
         my_coreg = sum(coreg_functions[1:], coreg_functions[0]) if len(coreg_functions) > 1 else coreg_functions[0]
 
         # Coregister
+
+
         aligned_elev = self.to_be_aligned_elev.dem.coregister_3d(self.reference_elev.dem, my_coreg, random_state=42)
-        aligned_elev.to_geoutils().to_file(self.outputs_folder / "rasters" / "aligned_elev.tif")
+        aligned_elev.dem.to_file(self.outputs_folder / "rasters" / "aligned_elev.tif")
 
         self.dico_to_show.append(("Coregistration user configuration", self.config["coregistration"]))
 
@@ -230,10 +232,10 @@ class Accuracy(Workflows):
             )
 
         if self.level > 1:
-            self.reference_elev.to_geoutils().to_file(
+            self.reference_elev.to_file(
                 self.outputs_folder / "rasters" / "reference_elev_reprojected.tif"
             )
-            self.to_be_aligned_elev.to_geoutils().to_file(
+            self.to_be_aligned_elev.to_file(
                 self.outputs_folder / "rasters" / "to_be_aligned_elev_reprojected.tif"
             )
 
@@ -250,7 +252,7 @@ class Accuracy(Workflows):
 
         if list_to_compute is not None:
             logging.info(f"Computing statistics on {name_of_data}: {list_to_compute}")
-            dict_stats = dem.get_stats(list_to_compute)
+            dict_stats = dem.dem.get_stats(list_to_compute)
             dict_stats_aliased = {_ALIAS.get(k, k): v for k, v in dict_stats.items()}
 
         return dict_stats_aliased
@@ -300,7 +302,7 @@ class Accuracy(Workflows):
             va="center",
         )
         plt.title("Histogram of elevation differences\nbefore and after coregistration")
-        ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
+        ref_vunit = vertical_unit_symbol(self.reference_elev.dem.crs)
         plt.xlabel(f"Elevation differences ({ref_vunit})" if ref_vunit is not None else "Elevation differences")
         plt.ylabel("Count")
         plt.legend()
@@ -337,10 +339,10 @@ class Accuracy(Workflows):
         if self.compute_coreg:
 
             self.diff_before = self.to_be_aligned_elev - ref_elev
-            self.stats_before = self.diff_before.get_stats(stats_keys)
+            self.stats_before = self.diff_before.dem.get_stats(stats_keys)
 
-            self.diff_after = aligned_elev.reproject(ref_elev) - ref_elev
-            self.stats_after = self.diff_after.get_stats(stats_keys)
+            self.diff_after = aligned_elev.dem.reproject(ref_elev) - ref_elev
+            self.stats_after = self.diff_after.dem.get_stats(stats_keys)
 
             vmin_diff = min(
                 -(self.stats_before["median"] + 3 * self.stats_before["nmad"]),
@@ -351,32 +353,32 @@ class Accuracy(Workflows):
                 self.stats_after["median"] + 3 * self.stats_after["nmad"],
             )
 
-            ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
+            ref_vunit = vertical_unit_symbol(self.reference_elev.dem.crs)
             self.generate_plot(
                 dem=self.diff_before,
                 title="Elevation difference before coregistration",
                 filename="diff_elev_diff_coreg_map",
                 dem_right=self.diff_after,
+                label=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
                 title_dem_right="Elevation difference after coregistration",
                 vmin=vmin_diff,
                 vmax=vmax_diff,
-                cmap="RdBu",
-                cbar_title=f"Elevation differences ({ref_vunit})" if ref_vunit is not None else "Elevation differences",
+                label_right=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             )
 
         else:
             self.diff = self.to_be_aligned_elev - ref_elev
             self.stats = self.diff.dem.get_stats(stats_keys)
             vmin, vmax = -(self.stats["median"] + 3 * self.stats["nmad"]), self.stats["median"] + 3 * self.stats["nmad"]
-            ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
+            ref_vunit = vertical_unit_symbol(self.reference_elev.dem.crs)
             self.generate_plot(
                 self.diff,
                 title="Elevation difference without coregistration",
                 filename="diff_elev_without_coreg_map",
+                label=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
                 vmin=vmin,
                 vmax=vmax,
                 cmap="RdBu",
-                cbar_title=f"Elevation differences ({ref_vunit})" if ref_vunit is not None else "Elevation differences",
             )
         if self.compute_coreg:
             stat_items = [
@@ -424,13 +426,13 @@ class Accuracy(Workflows):
         if self.compute_coreg:
             self._compute_histogram()
             if self.level > 1:
-                self.diff_before.to_geoutils().to_file(
+                self.diff_before.to_file(
                     self.outputs_folder / "rasters" / "diff_elev_before_coreg_map.tif"
                 )
-                self.diff_after.to_geoutils().to_file(self.outputs_folder / "rasters" / "diff_elev_after_coreg_map.tif")
+                self.diff_after.to_file(self.outputs_folder / "rasters" / "diff_elev_after_coreg_map.tif")
         else:
             if self.level > 1:
-                self.diff.to_geoutils().to_file(self.outputs_folder / "rasters" / "diff_elev_without_coreg_map.tif")
+                self.diff.to_file(self.outputs_folder / "rasters" / "diff_elev_without_coreg_map.tif")
 
         t1 = time.time()
         self.elapsed = t1 - t0
