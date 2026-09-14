@@ -159,7 +159,6 @@ class Accuracy(Workflows):
 
         # Coregister
 
-
         aligned_elev = self.to_be_aligned_elev.dem.coregister_3d(self.reference_elev.dem, my_coreg, random_state=42)
         aligned_elev.dem.to_file(self.outputs_folder / "rasters" / "aligned_elev.tif")
 
@@ -232,12 +231,8 @@ class Accuracy(Workflows):
             )
 
         if self.level > 1:
-            self.reference_elev.to_file(
-                self.outputs_folder / "rasters" / "reference_elev_reprojected.tif"
-            )
-            self.to_be_aligned_elev.to_file(
-                self.outputs_folder / "rasters" / "to_be_aligned_elev_reprojected.tif"
-            )
+            self.reference_elev.to_file(self.outputs_folder / "rasters" / "reference_elev_reprojected.tif")
+            self.to_be_aligned_elev.to_file(self.outputs_folder / "rasters" / "to_be_aligned_elev_reprojected.tif")
 
     def _get_stats(self, dem: RasterType, name_of_data: str = "") -> floating[Any] | dict[str, floating[Any]]:
         """
@@ -426,9 +421,7 @@ class Accuracy(Workflows):
         if self.compute_coreg:
             self._compute_histogram()
             if self.level > 1:
-                self.diff_before.to_file(
-                    self.outputs_folder / "rasters" / "diff_elev_before_coreg_map.tif"
-                )
+                self.diff_before.to_file(self.outputs_folder / "rasters" / "diff_elev_before_coreg_map.tif")
                 self.diff_after.to_file(self.outputs_folder / "rasters" / "diff_elev_after_coreg_map.tif")
         else:
             if self.level > 1:

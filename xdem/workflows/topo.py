@@ -35,6 +35,7 @@ from xdem.workflows.workflows import _ALIAS, Workflows
 
 from geoutils import profiler
 
+
 class Topo(Workflows):
     """
     Topo class from workflows.

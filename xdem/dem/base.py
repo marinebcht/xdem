@@ -61,6 +61,7 @@ DEMType = TypeVar("DEMType", bound="DEMBase")
 # For inputs, we also accept a xr.DataArray
 DEMLike = Union["DEMBase", xr.DataArray]
 
+
 class DEMBase(RasterBase):
     """
     This class is non-public and made to be subclassed.
@@ -156,9 +157,11 @@ class DEMBase(RasterBase):
 
         # Raise deprecation warning for old in-place behaviour
         if "inplace" in kwargs and kwargs["inplace"]:
-            warnings.warn("Argument 'inplace' is deprecated and will be removed in future versions. "
-                          "Use dem = dem.to_vcrs() instead.",
-                          category=DeprecationWarning)
+            warnings.warn(
+                "Argument 'inplace' is deprecated and will be removed in future versions. "
+                "Use dem = dem.to_vcrs() instead.",
+                category=DeprecationWarning,
+            )
             inplace = True
         else:
             inplace = False

@@ -170,7 +170,7 @@ def test_load_config_none(get_topo_inputs_config, get_accuracy_inputs_config, tm
     assert config_output["inputs"]["sampling_grid"] is None
 
 
-@pytest.mark.parametrize("chunks",[None,  {"band": 1, "x": 50, "y": 50}])
+@pytest.mark.parametrize("chunks", [None, {"band": 1, "x": 50, "y": 50}])
 def test_generate_graph(get_topo_inputs_config, tmp_path, chunks):
     """
     Test generate_plot function
@@ -304,9 +304,9 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
         # Other outputs
         assert mask_path == config_dem["path_to_mask"]
         mask = gu.Vector(mask_path)
-        print (input_dem.dem.crs)
-        print ((~mask.create_mask(input_dem.dem)).crs)
-        print (inlier_mask.crs)
+        print(input_dem.dem.crs)
+        print((~mask.create_mask(input_dem.dem)).crs)
+        print(inlier_mask.crs)
         assert inlier_mask == ~mask.create_mask(input_dem.dem)
 
 

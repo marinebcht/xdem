@@ -293,7 +293,7 @@ class Workflows(ABC):
             print("Z", dem.dem.crs, type(dem.dem.crs))
             if from_vcrs:
                 dem.dem.set_vcrs(from_vcrs)
-                print ("A", dem.dem.crs, type(dem.dem.crs))
+                print("A", dem.dem.crs, type(dem.dem.crs))
             if to_vcrs:
                 if dem.dem.vcrs is None and from_vcrs is None:
                     raise ValueError(
@@ -302,7 +302,7 @@ class Workflows(ABC):
                     )
                 if from_vcrs != to_vcrs:
                     dem.dem.to_vcrs(to_vcrs, inplace=True)
-                print ("B", dem.dem.crs, type(dem.dem.crs))
+                print("B", dem.dem.crs, type(dem.dem.crs))
 
             if config_dem.get("force_source_nodata") is not None:
                 dem.dem.set_nodata(config_dem["force_source_nodata"], update_array=False, update_mask=False)
