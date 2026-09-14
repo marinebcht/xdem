@@ -332,4 +332,3 @@ def test_scalability(get_topo_inputs_config, scalability, error, caplog, assert_
     else:
         with pytest.raises(ValueError, match=error):
             _ = schemas.validate_configuration(topo_conf, schemas.TOPO_SCHEMA)
-        # assert_and_allow_log(caplog, level=logging.ERROR, match="'from_vcrs' field is not valid.*")

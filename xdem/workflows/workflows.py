@@ -223,7 +223,6 @@ class Workflows(ABC):
             cmap = plt.get_cmap(name="terrain")
 
         cmap.set_bad(color="k", alpha=None)
-        print (cmap)
 
         # Force figsize with the good ratio to prevent larger right axe if not filled
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])
@@ -291,8 +290,10 @@ class Workflows(ABC):
             inlier_mask = None
             from_vcrs = config_dem.get("from_vcrs", None)
             to_vcrs = config_dem.get("to_vcrs", None)
+            print("Z", dem.dem.crs, type(dem.dem.crs))
             if from_vcrs:
                 dem.dem.set_vcrs(from_vcrs)
+                print ("A", dem.dem.crs, type(dem.dem.crs))
             if to_vcrs:
                 if dem.dem.vcrs is None and from_vcrs is None:
                     raise ValueError(
@@ -301,6 +302,8 @@ class Workflows(ABC):
                     )
                 if from_vcrs != to_vcrs:
                     dem.dem.to_vcrs(to_vcrs, inplace=True)
+                print ("B", dem.dem.crs, type(dem.dem.crs))
+
             if config_dem.get("force_source_nodata") is not None:
                 dem.dem.set_nodata(config_dem["force_source_nodata"], update_array=False, update_mask=False)
             if config_dem.get("path_to_mask") is not None:

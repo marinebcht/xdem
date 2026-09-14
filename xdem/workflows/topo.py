@@ -33,12 +33,14 @@ from xdem.vcrs import vertical_unit_symbol
 from xdem.workflows.schemas import TOPO_SCHEMA
 from xdem.workflows.workflows import _ALIAS, Workflows
 
+from geoutils import profiler
 
 class Topo(Workflows):
     """
     Topo class from workflows.
     """
 
+    @profiler.profile("Topo.__init__", memprof=True, interval=0.001)
     def __init__(self, config_dem: str | Dict[str, Any], output: str | None = None) -> None:
         """
         Initialize Topo class
@@ -63,6 +65,7 @@ class Topo(Workflows):
 
         self.config = self.remove_none(self.config)  # type: ignore
 
+    @profiler.profile("Topo._load_data", memprof=True, interval=0.001)
     def _load_data(self) -> None:
         """
         Load data defined in config file.
@@ -187,6 +190,7 @@ class Topo(Workflows):
         plt.savefig(self.outputs_folder / "plots" / "terrain_attributes_map.png", dpi=300)
         plt.close()
 
+    @profiler.profile("Topo.run", memprof=True, interval=0.001)
     def run(self) -> None:
         """
         Run function for the topography workflow.
@@ -243,6 +247,7 @@ class Topo(Workflows):
                 except OSError:
                     pass
 
+    @profiler.profile("Topo.create_html", memprof=True, interval=0.001)
     def create_html(self, list_dict: list[tuple[str, dict[str, Any]]]) -> None:
         """
         Create HTML page from png files and table

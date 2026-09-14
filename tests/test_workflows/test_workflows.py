@@ -28,6 +28,7 @@ from pathlib import Path
 import geoutils as gu
 import numpy as np
 import pytest
+import xarray as xr
 
 import xdem
 from xdem.workflows.accuracy import Accuracy
@@ -169,11 +170,12 @@ def test_load_config_none(get_topo_inputs_config, get_accuracy_inputs_config, tm
     assert config_output["inputs"]["sampling_grid"] is None
 
 
-def test_generate_graph(get_topo_inputs_config, tmp_path):
+@pytest.mark.parametrize("chunks",[None,  {"band": 1, "x": 50, "y": 50}])
+def test_generate_graph(get_topo_inputs_config, tmp_path, chunks):
     """
     Test generate_plot function
     """
-    dem = xdem.open_dem(xdem.examples.get_path_test("longyearbyen_tba_dem"))
+    dem = xdem.open_dem(xdem.examples.get_path_test("longyearbyen_tba_dem"), chunks=chunks)
     filename = "test_generate_graph"
     title = "Test graph"
 
@@ -268,8 +270,13 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
 
     else:
         output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
+        assert isinstance(output_dem, xr.DataArray)
+        assert not output_dem._in_memory
+        assert isinstance(inlier_mask, gu.Raster)
+
         # assert isinstance(output_dem, RasterT)
         mean_after = np.nanmean(output_dem)
+        assert output_dem._in_memory
 
         # Check output_dem vcrs reference
         if to_vcrs == "EGM96" or (to_vcrs is None and from_vcrs == "EGM96"):
@@ -280,11 +287,12 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
             assert output_dem.dem.vcrs is None
 
         # Check output_dem
-        if from_vcrs == to_vcrs:
+        if from_vcrs is not None:
+            input_dem.dem.set_vcrs(from_vcrs)
+        if to_vcrs is not None:
+            input_dem.dem.to_vcrs(from_vcrs)
             # Need to convert input to the forced CRS, if it exists
-            if from_vcrs is not None:
-                input_dem.rst.set_vcrs(from_vcrs)
-            assert output_dem.dem.raster_equal(input_dem.dem, warn_failure_reason=True)
+        assert output_dem.dem.raster_equal(input_dem.dem, warn_failure_reason=True)
 
         # About 32 meters of difference in Svalbard between EGM96 geoid and ellipsoid
         if to_vcrs == "Ellipsoid" and from_vcrs == "EGM96":
@@ -297,10 +305,8 @@ def test_load_dem(get_dem_config, from_vcrs, to_vcrs):
         assert mask_path == config_dem["path_to_mask"]
         mask = gu.Vector(mask_path)
         print (input_dem.dem.crs)
-        print ((~mask.create_mask(input_dem)).crs)
-        print (type(inlier_mask))
+        print ((~mask.create_mask(input_dem.dem)).crs)
         print (inlier_mask.crs)
-
         assert inlier_mask == ~mask.create_mask(input_dem.dem)
 
 
@@ -313,18 +319,21 @@ def test_load_dem_alias():
     config_dem = dict()
     config_dem["path_to_elev"] = "longyearbyen_ref_dem"
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
-
-    input_dem = xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"]))
-
-    assert output_dem.rst.raster_equal(input_dem.rst)
+    assert isinstance(output_dem, xr.DataArray)
+    assert not output_dem._in_memory
     assert inlier_mask is None
     assert mask_path is None
+
+    input_dem = xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"]))
+    assert output_dem.rst.raster_equal(input_dem.rst)
 
     # Test with mask
     config_dem = dict()
     config_dem["path_to_elev"] = "longyearbyen_tba_dem"
     config_dem["path_to_mask"] = "longyearbyen_glacier_outlines"
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
+    assert isinstance(output_dem, xr.DataArray)
+    assert not output_dem._in_memory
 
     assert output_dem.rst.raster_equal(xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"])).rst)
     assert inlier_mask == ~gu.Vector(mask_path).create_mask(output_dem.rst)

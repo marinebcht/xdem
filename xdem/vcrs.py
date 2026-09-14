@@ -274,7 +274,7 @@ def _build_vcrs_from_grid(grid: str, old_way: bool = False) -> BoundCRS:
             ccrs = pyproj.Proj(init="EPSG:4326", geoidgrids=grid).crs
             bound_crs = ccrs.sub_crs_list[1]
 
-    # The clean way
+    # The clean way_to_vcrs_2d
     else:
         # First, we build a bounds CRS (the vertical CRS relative to geographic)
         vertical_crs = VerticalCRS(
