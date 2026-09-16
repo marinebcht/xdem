@@ -94,6 +94,7 @@ Information about the coregistration inputs and outputs is summarized in {func}`
 Often, an `inlier_mask` has to be passed to {func}`~xdem.coreg.Coreg.fit` to isolate static surfaces to utilize during coregistration (for instance removing vegetation, snow, glaciers). This mask can be easily derived using {func}`~geoutils.Vector.create_mask`.
 ```
 
+(supported_coreg_method)=
 ## Summary of supported methods
 
 ```{list-table}
@@ -532,7 +533,7 @@ For both **inputs** and **outputs**, four consistent categories of metadata are 
 
 - An input `fit_or_bin` to either fit a parametric model by passing **"fit"**, perform an empirical binning by passing **"bin"**, or to fit a parametric model to the binning with **"bin_and_fit" (only "fit" or "bin_and_fit" possible for affine methods)**,
 - An input `fit_func` to pass any parametric function to fit to the bias **(pre-defined for affine methods)**,
-- An input `fit_optimizer` to pass any optimizer function to perform the fit minimization,
+- An input `fit_optimizer` that stores the optimizer used for the fit, including **"ols"** for linear methods,
 - An input `bin_sizes` to pass the size or edges of the bins for each variable,
 - An input `bin_statistic` to pass the statistic to compute in each bin,
 - An input `bin_apply_method` to pass the method to apply the binning for correction,
@@ -551,7 +552,7 @@ For both **inputs** and **outputs**, four consistent categories of metadata are 
 
 - An input `only_translation` to define if a coregistration should solve only for translations instead of a full rigid transformation (translations and rotations),
 - An input `standardize` to define if the input data should be standardized to the unit sphere before coregistration (to improve numerical convergence),
-- An input `initial_shift` that defines the estimated initial x and y shifts in georeferenced units, applied before fit step.
+- An input `initial_shift` that defines the estimated initial x and y shifts in georeferenced units, applied before fit step (when used within a CoregPipeline, only the initial offset specified in the first coregistration is applied, others are ignored),
 - An output `matrix` that stores the estimated affine matrix,
 - An output `centroid` that stores the centroid coordinates with which to apply the affine transformation,
 - Outputs `shift_x`, `shift_y` and `shift_z` that store the easting, northing and vertical offsets, respectively.
@@ -570,6 +571,7 @@ These metadata are only inputs specific to a given method, outlined in the metho
 For instance, for {class}`xdem.coreg.Deramp`, an input `poly_order` to define the polynomial order used for the fit, and
 for {class}`xdem.coreg.DirectionalBias`, an input `angle` to define the angle at which to do the directional correction.
 
+(blockwise)=
 ## Dividing coregistration in blocks
 
 ### The {class}`~xdem.coreg.BlockwiseCoreg` object

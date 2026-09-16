@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import warnings
 from importlib.util import find_spec
 from typing import Any
@@ -50,9 +51,8 @@ class TestBinning:
         """Check that the nd_binning function works adequately and save dataframes to files for later tests"""
 
         # Subsampler
-        indices = gu.stats.sampling.subsample_array(
-            self.diff.data.flatten(), subsample=10000, return_indices=True, random_state=42
-        )
+        sample_rows, sample_cols = self.diff.subsample(subsample=1, return_indices=True, random_state=42)
+        indices = np.ravel_multi_index((sample_rows, sample_cols), self.diff.shape)
 
         # 1D binning, by default will create 10 bins
         df = xdem.spatialstats.nd_binning(
@@ -539,6 +539,22 @@ class TestVariogram:
         # Test plotting of empirical variogram by itself
         if PLOT:
             xdem.spatialstats.plot_variogram(df2)
+
+    def test_sample_empirical_variogram_no_fork_warning(self) -> None:
+        """Forking a multi-threaded parent is deprecated and can deadlock the child."""
+
+        stop = threading.Event()
+        thread = threading.Thread(target=stop.wait)
+        thread.start()
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("error", message=".*fork.*", category=DeprecationWarning)
+                xdem.spatialstats.sample_empirical_variogram(
+                    values=self.diff, subsample=10, random_state=42, n_variograms=2, n_jobs=2
+                )
+        finally:
+            stop.set()
+            thread.join()
 
     def test_sample_empirical_variogram_speed(self) -> None:
         """Verify that no speed is lost outside of routines on variogram sampling by comparing manually to skgstat"""
