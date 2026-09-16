@@ -54,7 +54,11 @@ class TestBlockwiseCoreg:
         assert coreg_obj.block_size_fit == 25
         assert coreg_obj.apply_z_correction is False
         assert coreg_obj.output_path_aligned == tmp_path / "aligned_dem.tif"
-        assert coreg_obj.meta == {"inputs": {}, "outputs": {}}
+        print(coreg_obj.meta)
+        assert coreg_obj.meta == {
+            "inputs": {"blockwise": {"block_size_fit": 25, "block_size_apply": 25}},
+            "outputs": {},
+        }
 
     def test_init_raises_if_both_mp_config_and_parent_path_are_provided(self, mp_config, step, tmp_path) -> None:
         """Test error is raised when both 'mp_config' and 'parent_path' are set."""
@@ -189,12 +193,23 @@ class TestBlockwiseCoreg:
             tba_crop = tba.icrop(bbox=(0, 0, block_size, block_size))
             tba = tba_crop.reproject(tba)
 
-        config_mc = MultiprocConfig(chunks=block_size, outfile=tmp_path / "test.tif")
+        config_mc = MultiprocConfig(chunks=block_size, outfile=tmp_path / ("test_" + str(block_size) + ".tif"))
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
+        assert "blocks" not in blockwise_coreg.meta["inputs"]["blockwise"]
+
         blockwise_coreg.fit(ref, tba, mask)
+
+        assert "blocks" in blockwise_coreg.meta["inputs"]["blockwise"]
+        blocks_in = blockwise_coreg.meta["inputs"]["blockwise"]["blocks"]
+        print("blocks_in", blocks_in)
+        blocks_out = blockwise_coreg.procstep._meta["outputs"]
+        print("blocks_out", blocks_out)
+        assert len(blocks_in) == len(blocks_out)
+        assert blocks_in.keys() == blocks_out.keys()
+
         blockwise_coreg.apply(tba)
 
-        aligned = xdem.DEM(tmp_path / "test.tif")
+        aligned = xdem.DEM(tmp_path / ("test_" + str(block_size) + ".tif"))
 
         # Ground truth comparison with full image coregistration
         expected = step_coreg.fit_and_apply(ref, tba, mask)

@@ -2012,6 +2012,19 @@ class InAffineDict(TypedDict, total=False):
     standardize: bool
 
 
+class InBlockDict(TypedDict, total=False):
+    """Information about the blocks used for the fit in the Blockwise"""
+
+    # Estimated initial shift (z currently always equal to zero)
+    start_x: int
+    # Vertical shift reduction function for methods focusing on translation coregistration
+    end_x: int
+    # Vertical shift activated
+    start_y: int
+    # Apply coregistration method only for translations
+    end_y: int
+
+
 class OutAffineDict(TypedDict, total=False):
     """Keys and types of outputs associated with affine methods."""
 
@@ -2291,20 +2304,24 @@ class Coreg:
                             f"    {dict_key_to_str[k]}:".ljust(tab) + f"{format_coregdict_values(v, tab)}\n"
                             for k, v in existing_level_keys
                         ]
-            if "0_0" in self._meta["outputs"]:
+            output_first_block = self._meta["outputs"].get("0_0")
+            if output_first_block is not None:
                 outputs_str += "  Affine\n"
 
                 blocks = self._meta["outputs"].keys()
-                keys = self._meta["outputs"]["0_0"].keys()
-
-                for key in keys:
-                    outputs_str += f"    {key}:".ljust(tab) + f"{format_coregdict_values(dict_key_to_str[key], tab)}\n"
+                keys = output_first_block.keys()
+                sub_keys = [sub_key for key in keys for sub_key in output_first_block[key].keys()]  # type: ignore
+                for sub_key in sub_keys:
+                    outputs_str += (
+                        f"    {sub_key}:".ljust(tab) + f"{format_coregdict_values(dict_key_to_str[sub_key], tab)}\n"
+                    )
 
                 shifts = []
                 for block in blocks:
                     shifts_block = []
                     for key in keys:
-                        shifts_block.append(str(float(self._meta["outputs"][block][key])))
+                        for sub_key in output_first_block[key].keys():  # type: ignore
+                            shifts_block.append(str(float(self._meta["outputs"][block][key][sub_key])))  # type: ignore
                     shifts.append(shifts_block)
 
                 # shifts = [list(colonne) for colonne in zip(*shifts)]
@@ -2313,7 +2330,7 @@ class Coreg:
 
                 outputs_str += (
                     "    Blocks".ljust(tab)
-                    + ", ".join(str(key).rjust(tab_shifts[k]) for k, key in enumerate(keys))
+                    + ", ".join(str(sub_key).rjust(tab_shifts[sk]) for sk, sub_key in enumerate(sub_keys))
                     + "\n"
                 )
 
@@ -2443,6 +2460,7 @@ class Coreg:
         :param z_name: Column name to use as elevation, only for point elevation data passed as geodataframe.
         :param random_state: Random state or seed number to use for calculations (to fix random sampling).
         """
+        logging.info("fit")
 
         if weights is not None:
             raise NotImplementedError("Weights have not yet been implemented")
@@ -2535,6 +2553,7 @@ class Coreg:
 
         # Flag that the fitting function has been called.
         self._fit_called = True
+        logging.info("fit")
 
         return self
 
@@ -3183,6 +3202,7 @@ class CoregPipeline(Coreg):
         random_state: int | np.random.Generator | None = None,
         **kwargs: Any,
     ) -> CoregType:
+        logging.info("fit")
 
         # Check if subsample arguments are different from their default value for any of the coreg steps:
         # get default value in argument spec and "subsample" stored in meta, and compare both are consistent
@@ -3240,6 +3260,7 @@ class CoregPipeline(Coreg):
 
         # Flag that the fitting function has been called.
         self._fit_called = True
+        logging.info("fit")
 
         return self
 
