@@ -143,15 +143,17 @@ def vertical_unit_symbol(crs: Any) -> str | None:
 
     # Check axis is indeed vertical, otherwise return None
     for axis in crs.axis_info:
-        if axis.direction in ("up", "down"):
+        if axis.direction in ("up", "down", "north", "south"):
 
             # Prefer EPSG unit code if it exists
             code = axis.unit_auth_code
+            print("code", code)
             if code and code in _UNIT_SYMBOLS:
                 return _UNIT_SYMBOLS[code]
 
             # Fallback to normalized unit names
             name = axis.unit_name.lower()
+            print("name", name)
 
             if name in {"metre", "meter"}:
                 return "m"

@@ -41,13 +41,16 @@ def test_init_diff_analysis(get_accuracy_inputs_test):
     """
     Test initialization of accuracy class
     """
+    print(get_accuracy_inputs_test)
     workflows = Accuracy(get_accuracy_inputs_test)
     workflows.run()
 
-    dem = xdem.DEM(xdem.examples.get_path_test("longyearbyen_tba_dem"))
-    mask = gu.Vector(xdem.examples.get_path_test("longyearbyen_glacier_outlines"))
+    assert isinstance(workflows, Accuracy)
+
+    dem = xdem.DEM(get_accuracy_inputs_test["inputs"]["reference_elev"]["path_to_elev"])
+    mask = gu.Vector(get_accuracy_inputs_test["inputs"]["reference_elev"]["path_to_mask"])
     inlier_mask = ~mask.create_mask(dem)
-    assert workflows.to_be_aligned_elev.get_mask() == inlier_mask
+    assert workflows.reference_elev.isnull().data == inlier_mask
 
 
 def test__get_reference_elevation(get_accuracy_inputs_test, tmp_path, caplog, assert_and_allow_log):
@@ -103,8 +106,8 @@ def test__get_stats(get_accuracy_inputs_test, tmp_path, stats_name, res):
     user_config["statistics"] = stats_name
     workflows = Accuracy(user_config)
 
-    dem = xdem.DEM(xdem.examples.get_path_test("longyearbyen_tba_dem"))
-    stats_gt = dem.get_stats(stats_name)
+    dem = xdem.open_dem(xdem.examples.get_path_test("longyearbyen_tba_dem"))
+    stats_gt = dem.dem.get_stats(stats_name)
 
     assert list(set(workflows._get_stats(dem).keys())) == list(set(res))  # type: ignore
     assert workflows._get_stats(dem) == {_ALIAS.get(k, k): v for k, v in stats_gt.items()}
@@ -259,6 +262,7 @@ def test_run_prepare_datas(get_accuracy_inputs_test, tmp_path, config):
         user_config["inputs"][dem_to_crop]["path_to_elev"] = Path(tmp_path / (dem_to_crop + "_crop.tif")).as_posix()
 
     if error is not None:
+        print(user_config)
         with pytest.raises(ValueError, match=error):
             workflows = Accuracy(user_config)
             workflows.run()

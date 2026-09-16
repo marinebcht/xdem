@@ -80,22 +80,21 @@ class Topo(Workflows):
         """
 
         self.dem, self.inlier_mask, path_to_mask = self.load_dem(input)
-        vunit = vertical_unit_symbol(self.dem.crs)
         self.generate_plot(
             self.dem,
             filename="elev_map",
             title="Elevation",
-            cbar_title=f"Elevation ({vunit})" if vunit is not None else "Elevation",
         )
 
         if self.inlier_mask is not None:
             inlier_mask_crop = self.inlier_mask.reproject(self.dem, silent=True).crop(self.dem)
-            self.dem.set_mask(~inlier_mask_crop)
+            import numpy as np
+
+            self.dem.data = np.where(inlier_mask_crop.data, self.dem.data, np.nan)
             self.generate_plot(
                 self.dem,
                 title="Masked elevation",
                 filename="masked_elev_map",
-                cbar_title=f"Elevation ({vunit})" if vunit is not None else "Elevation",
             )
 
     def generate_terrain_attributes_png(self, attributes: list[Raster]) -> None:
@@ -106,7 +105,7 @@ class Topo(Workflows):
         n = len(attributes)
         ncols = 3 if n > 6 else 2
         nrows = math.ceil(n / ncols)
-        unit = vertical_unit_symbol(self.dem.crs)
+        unit = vertical_unit_symbol(self.dem.dem.crs)
         attribute_params: dict[str, dict[str, Any]] = {
             "hillshade": {"label": "Hillshade", "cmap": "Greys_r", "vlim": (0, 255)},
             "texture_shading": {"label": "Texture shading", "cmap": "Greys_r", "vlim": (-20, 20)},
@@ -143,15 +142,20 @@ class Topo(Workflows):
         plt.rc("figure", titlesize=size_font)
 
         axes = axes.flatten()
+
         for i, attr in enumerate(self.list_attributes):
             ax = axes[i]
             params = attribute_params[attr]
-            cmap = params["cmap"]
             label = params["label"]
             vmin, vmax = params["vlim"]
-            attributes[i].plot(ax=ax, cmap=cmap, vmin=vmin, vmax=vmax, cbar_title=label)
+            kwargs = {"cmap": params["cmap"]}
+            kwargs.setdefault("cbar_kwargs", {"label": f"{label}"})
+            attributes[i].plot(ax=ax, vmin=vmin, vmax=vmax, **kwargs)
+            ax.set_title(None)
             ax.set_xticks([])
             ax.set_yticks([])
+            ax.set_xlabel(None)
+            ax.set_ylabel(None)
 
         [fig.delaxes(ax) for ax in axes.flatten() if not ax.has_data()]
         plt.tight_layout()
@@ -167,13 +171,13 @@ class Topo(Workflows):
         """
 
         proj_crs = None
-        if self.dem.crs.is_geographic:
+        if self.dem.dem.crs.is_geographic:
             if (
                 self.config.get("reproject", None) is None
                 or self.config["reproject"].get("crs", None) is None
                 or self.config["reproject"]["crs"] is True
             ):
-                proj_crs = self.dem.get_metric_crs()
+                proj_crs = self.dem.dem.get_metric_crs()
 
                 logging.info(f"Reprojection in default projected CRS ({proj_crs})")
 
@@ -198,48 +202,52 @@ class Topo(Workflows):
         if proj_crs is not None:
             # Terrain derivatives require square pixels; request GDAL's suggested spacing explicitly
             target_transform, _, _ = calculate_default_transform(
-                self.dem.crs, proj_crs, self.dem.width, self.dem.height, *self.dem.bounds
+                self.dem.dem.crs, proj_crs, self.dem.dem.width, self.dem.dem.height, *self.dem.dem.bounds
             )
-            self.dem = self.dem.reproject(crs=proj_crs, res=abs(target_transform.a))
+            self.dem = self.dem.dem.reproject(crs=proj_crs, res=abs(target_transform.a))
             if self.level > 1:
-                self.dem.to_file(self.outputs_folder / "rasters" / "elev_reprojected.tif")
-        elif self.dem.res[0] != self.dem.res[1]:
+                self.dem.dem.to_file(self.outputs_folder / "rasters" / "elev_reprojected.tif")
+
+        elif self.dem.dem.res[0] != self.dem.dem.res[1]:
             # Retain the chosen CRS while regularizing a rectangular grid at its finer pixel spacing
-            self.dem = self.dem.reproject(res=min(self.dem.res))
+            self.dem = self.dem.dem.reproject(res=min(self.dem.dem.res))
 
         attribute_extra = {}
         from_str_to_fun = {
-            "slope": lambda: self.dem.slope(**attribute_extra),
-            "aspect": lambda: self.dem.aspect(**attribute_extra),
-            "hillshade": lambda: self.dem.hillshade(**attribute_extra),
-            "profile_curvature": lambda: self.dem.profile_curvature(**attribute_extra),
-            "tangential_curvature": lambda: self.dem.tangential_curvature(**attribute_extra),
-            "planform_curvature": lambda: self.dem.planform_curvature(**attribute_extra),
-            "flowline_curvature": lambda: self.dem.flowline_curvature(**attribute_extra),
-            "max_curvature": lambda: self.dem.max_curvature(**attribute_extra),
-            "min_curvature": lambda: self.dem.min_curvature(**attribute_extra),
-            "topographic_position_index": lambda: self.dem.topographic_position_index(**attribute_extra),
-            "terrain_ruggedness_index": lambda: self.dem.terrain_ruggedness_index(**attribute_extra),
-            "roughness": lambda: self.dem.roughness(**attribute_extra),
-            "rugosity": lambda: self.dem.rugosity(**attribute_extra),
-            "texture_shading": lambda: self.dem.texture_shading(**attribute_extra),
-            "fractal_roughness": lambda: self.dem.fractal_roughness(**attribute_extra),
+            "slope": lambda: self.dem.dem.slope(**attribute_extra),
+            "aspect": lambda: self.dem.dem.aspect(**attribute_extra),
+            "hillshade": lambda: self.dem.dem.hillshade(**attribute_extra),
+            "profile_curvature": lambda: self.dem.dem.profile_curvature(**attribute_extra),
+            "tangential_curvature": lambda: self.dem.dem.tangential_curvature(**attribute_extra),
+            "planform_curvature": lambda: self.dem.dem.planform_curvature(**attribute_extra),
+            "flowline_curvature": lambda: self.dem.dem.flowline_curvature(**attribute_extra),
+            "max_curvature": lambda: self.dem.dem.max_curvature(**attribute_extra),
+            "min_curvature": lambda: self.dem.dem.min_curvature(**attribute_extra),
+            "topographic_position_index": lambda: self.dem.dem.topographic_position_index(**attribute_extra),
+            "terrain_ruggedness_index": lambda: self.dem.dem.terrain_ruggedness_index(**attribute_extra),
+            "roughness": lambda: self.dem.dem.roughness(**attribute_extra),
+            "rugosity": lambda: self.dem.dem.rugosity(**attribute_extra),
+            "texture_shading": lambda: self.dem.dem.texture_shading(**attribute_extra),
+            "fractal_roughness": lambda: self.dem.dem.fractal_roughness(**attribute_extra),
         }
 
         logging.info(f"Computing attributes : {self.list_attributes}")
+
         if isinstance(self.config_attributes, list):
             attributes = xdem.terrain.get_terrain_attribute(
                 self.dem,
                 attribute=self.list_attributes,
             )
+
             # if only one attribute, put it in a list
-            if isinstance(attributes, Raster):
+            if len(self.list_attributes) == 1:
                 attributes = [attributes]
+
         else:
             attributes = []
             for attr in self.list_attributes:
                 attribute_extra = self.config_attributes.get(attr) or {}  # type: ignore
-                attributes.append(from_str_to_fun[attr]())
+                attributes.append(from_str_to_fun[attr]().compute())
 
         # Generate terrain attributes png
         self.generate_terrain_attributes_png(attributes)
@@ -248,7 +256,7 @@ class Topo(Workflows):
         if export_tif:
             for k, attr in enumerate(self.list_attributes):
                 logging.info(f"Saving {attr} as a raster file (rasters/{attr}.tif)")
-                attributes[k].to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
+                attributes[k].rst.to_file(self.outputs_folder / "rasters" / f"{attr}.tif")
 
     def run(self) -> None:
         """
@@ -278,24 +286,24 @@ class Topo(Workflows):
 
             # Global information
             dem_informations = {
-                "Driver": self.dem.driver,
-                "Filename": self.dem.name,
-                "Number of band": self.dem.bands,
-                "Data types": self.dem.dtype,
-                "Nodata Value": self.dem.nodata,
-                "Pixel interpretation": self.dem.area_or_point,
-                "Pixel size": self.dem.res,
-                "Width": self.dem.width,
-                "Height": self.dem.height,
-                "Transform": self.dem.transform,
-                "Bounds": self.dem.bounds,
+                "Driver": self.dem.dem.driver,
+                "Filename": self.dem.dem.name,
+                "Number of band": self.dem.dem.bands,
+                "Data types": str(self.dem.dem.dtype),
+                "Nodata Value": float(self.dem.dem.nodata),
+                "Pixel interpretation": self.dem.dem.area_or_point,
+                "Pixel size": self.dem.dem.res,
+                "Width": self.dem.dem.width,
+                "Height": self.dem.dem.height,
+                "Transform": self.dem.dem.transform,
+                "Bounds": self.dem.dem.bounds,
             }
             self.dico_to_show[k].append(("Elevation information", dem_informations))
 
             # Statistics
             list_metrics = self.config["statistics"]
             if list_metrics is not None:
-                stats_dem = self.dem.get_stats(list_metrics)
+                stats_dem = self.dem.dem.get_stats(list_metrics)
                 stats_dem = {_ALIAS.get(k, k): v for k, v in stats_dem.items()}
                 self.save_stat_as_csv(stats_dem, "stats_elev")
                 self.dico_to_show[k].append(("Statistics", self.floats_process(stats_dem)))

@@ -137,6 +137,26 @@ class Workflows(ABC):
         for folder in ["plots", "rasters", "tables"]:
             Path(self.outputs_folder / folder).mkdir(parents=True, exist_ok=True)
 
+        self.dask = None
+        self.multiprocess = None
+        if self.config.get("scalability", None) is not None:
+            sca = self.config["scalability"]
+            self.dask = sca.get("dask", None)
+            if self.dask is None:
+                from geoutils.multiproc import MultiprocConfig
+
+                chunk_size = sca["multiprocess"]["chunk_size"]
+                nb_workers = sca["multiprocess"].get("nb_workers", None)
+                from geoutils.raster import ClusterGenerator
+
+                cluster = None
+                if nb_workers:
+                    cluster = ClusterGenerator("multi", nb_workers)
+                self.multiprocess = MultiprocConfig(chunk_size=chunk_size, cluster=cluster)
+            else:
+                self.multiprocess = None
+                self.dask["chunks"]["band"] = 1
+
     class NoAliasDumper(SafeDumper):  # type: ignore
         """
         NoAliasDumper to avoid id in YAML file
@@ -224,20 +244,21 @@ class Workflows(ABC):
         kwargs["cmap"] = cmap
 
         # Add colormap
-        vunit = vertical_unit_symbol(dem.crs)
-        kwargs.setdefault("cbar_title", f"Elevation differences ({vunit})" if vunit else "Elevation differences")
-
+        vunit = vertical_unit_symbol(dem.dem.crs)
+        kwargs.setdefault(
+            "cbar_kwargs", {"label": f"Elevation differences ({vunit})" if vunit else "Elevation differences"}
+        )
         # Force figsize with the good ratio to prevent larger right axe if not filled
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=[6.4, 2.4])
 
         # Add the first image to the figure (left position)
         dem.plot(ax=ax1, **kwargs)
-        plt.title(title)
+        ax1.set_title(title)
 
         # If exists, add the second image to the figure
         if dem_right is not None:
             dem_right.plot(ax=ax2, **kwargs)
-            plt.title(title_dem_right)
+            ax2.set_title(title_dem_right)
         else:
             ax2.set_axis_off()
 
@@ -263,12 +284,15 @@ class Workflows(ABC):
         import matplotlib.pyplot as plt
         from matplotlib.gridspec import GridSpec
 
-        vunit = vertical_unit_symbol(dem.crs)
+        vunit = vertical_unit_symbol(dem.dem.crs)
         unit_label = f" ({vunit})" if vunit else ""
 
         # Raster data
-        data = dem.data
+        data = dem.dem.data
+        print(data)
+        print(type(data))
         ny, nx = data.shape
+        print(nx, ny)
 
         # Initial min/max for mean profiles
         profile_cols = data.mean(axis=0)
@@ -277,7 +301,8 @@ class Workflows(ABC):
         profile_rows_stats = [profile_rows.min(), profile_rows.max()]
 
         # Keep profiles with at least more than 50% of valid values
-        nb_valid_rows, nb_valid_cols = data.count(axis=1), data.count(axis=0)
+        nb_valid_rows = np.sum(~np.isnan(data), axis=1)  # todo
+        nb_valid_cols = np.sum(~np.isnan(data), axis=0)
         min_valid_rows, min_valid_cols = data.shape[1] / 2.0, data.shape[0] / 2.0
 
         # Update profiles values according to valid values
@@ -361,7 +386,9 @@ class Workflows(ABC):
             return dict_with_floats
 
     @staticmethod
-    def load_dem(config_dem: Dict[str, Any] | None) -> tuple[DEM, Raster, str | None]:
+    def load_dem(
+        config_dem: Dict[str, Any] | None, dask: Dict[str, Any] | None = None
+    ) -> tuple[DEM, Raster, str | None]:
         """
         Generate DEM from user configuration dictionary.
 
@@ -380,16 +407,22 @@ class Workflows(ABC):
 
             # Get default value
             config_dem["downsample"] = config_dem.get("downsample", 1)
+            from xdem import open_dem
 
-            dem = xdem.DEM(path_to_elev, downsample=config_dem["downsample"])
+            if dask is not None:
+                chunks = dask["chunks"]
+                dem = open_dem(path_to_elev, chunks=chunks, downsample=config_dem.get("downsample", 1))
+            else:
+                dem = open_dem(path_to_elev)
+
             inlier_mask = None
 
             force_vcrs = config_dem.get("force_vcrs", None)
             if force_vcrs:
-                dem.set_vcrs(force_vcrs)
+                dem.dem.set_vcrs(force_vcrs)
 
             if config_dem.get("force_source_nodata") is not None:
-                dem.set_nodata(config_dem["force_source_nodata"], update_array=False, update_mask=False)
+                dem.dem.set_nodata(config_dem["force_source_nodata"], update_array=False, update_mask=False)
 
             if config_dem.get("path_to_mask") is not None:
 

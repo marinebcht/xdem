@@ -29,6 +29,7 @@ from pathlib import Path
 import geoutils as gu
 import numpy as np
 import pytest
+import xarray as xr
 
 import xdem
 from xdem.workflows.accuracy import Accuracy
@@ -220,11 +221,12 @@ def test_pipeline_topo_default_values(get_topo_inputs_config_list, tmp_path):
     assert pipeline_topo_test["outputs"] == COMPLETE_CONFIG_TOPO["outputs"]
 
 
-def test_generate_graph(get_topo_inputs_config_list, tmp_path):
+@pytest.mark.parametrize("chunks", [None, {"band": 1, "x": 50, "y": 50}])
+def test_generate_graph(get_topo_inputs_config_list, tmp_path, chunks):
     """
     Test generate_plot function
     """
-    dem = xdem.DEM(xdem.examples.get_path_test("longyearbyen_tba_dem"))
+    dem = xdem.open_dem(xdem.examples.get_path_test("longyearbyen_tba_dem"), chunks=chunks)
     filename = "test_generate_graph"
     title = "Test graph"
 
@@ -301,17 +303,17 @@ def test_load_dem(data, force_vcrs):
     config_dem["force_vcrs"] = force_vcrs
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
 
-    dem = xdem.DEM(config_dem["path_to_elev"])
+    dem = xdem.open_dem(config_dem["path_to_elev"])
 
     # VCRS
     if force_vcrs is None:
-        assert output_dem.vcrs == dem.vcrs
+        assert output_dem.dem.vcrs == dem.dem.vcrs
     else:
-        dem.set_vcrs(force_vcrs)
-        assert output_dem.vcrs == dem.vcrs
+        dem.dem.set_vcrs(force_vcrs)
+        assert output_dem.dem.vcrs == dem.dem.vcrs
 
     # DEM
-    assert dem.georeferenced_grid_equal(output_dem)
+    assert dem.dem.georeferenced_grid_equal(output_dem)
 
 
 def test_load_dem_alias():
@@ -324,18 +326,24 @@ def test_load_dem_alias():
     config_dem["path_to_elev"] = "longyearbyen_ref_dem"
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
 
-    assert output_dem.raster_equal(xdem.DEM(xdem.examples.get_path(config_dem["path_to_elev"])))
+    assert isinstance(output_dem, xr.DataArray)
+    assert not output_dem._in_memory
     assert inlier_mask is None
     assert mask_path is None
+
+    input_dem = xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"]))
+    assert output_dem.rst.raster_equal(input_dem.rst)
 
     # Test with mask
     config_dem = dict()
     config_dem["path_to_elev"] = "longyearbyen_tba_dem"
     config_dem["path_to_mask"] = "longyearbyen_glacier_outlines"
     output_dem, inlier_mask, mask_path = Workflows.load_dem(config_dem)
+    assert isinstance(output_dem, xr.DataArray)
+    assert not output_dem._in_memory
 
-    assert output_dem == xdem.DEM(xdem.examples.get_path(config_dem["path_to_elev"]))
-    assert inlier_mask.raster_equal(~gu.Vector(mask_path).create_mask(output_dem))
+    assert output_dem.rst.raster_equal(xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"])).rst)
+    assert inlier_mask == ~gu.Vector(mask_path).create_mask(output_dem.rst)
     assert mask_path == xdem.examples.get_path("longyearbyen_glacier_outlines")
 
 
