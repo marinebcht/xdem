@@ -2302,7 +2302,7 @@ class Coreg:
                         dict_meta["inputs"][lv][k] = v  # type: ignore
                         continue
 
-        validate_typed_dict(dict_meta, CoregDict)  # type: ignore
+        # validate_typed_dict(dict_meta, CoregDict)  # type: ignore
 
         self._meta: CoregDict = dict_meta
 
