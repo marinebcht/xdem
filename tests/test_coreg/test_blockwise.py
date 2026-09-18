@@ -187,7 +187,7 @@ class TestBlockwiseCoreg:
             ref_crop = ref.icrop(bbox=(0, 0, block_size, block_size))
             ref = ref_crop.reproject(ref)
             tba_crop = tba.icrop(bbox=(0, 0, block_size, block_size))
-            tba = tba_crop.reproject(tba)
+            tba = tba_crop.reproject(tba)  # comment
 
         config_mc = MultiprocConfig(chunks=block_size, outfile=tmp_path / "test.tif")
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
