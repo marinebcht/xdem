@@ -34,6 +34,7 @@ from numpy import floating
 
 import xdem
 from xdem._misc import import_optional
+from xdem.vcrs import vertical_unit_symbol
 from xdem.workflows.schemas import ACCURACY_SCHEMA
 from xdem.workflows.workflows import _ALIAS, Workflows
 
@@ -89,6 +90,7 @@ class Accuracy(Workflows):
         vmin = float(min(np.nanpercentile(self.reference_elev, q=5), np.nanpercentile(self.to_be_aligned_elev, q=5)))
         vmax = float(max(np.nanpercentile(self.reference_elev, q=95), np.nanpercentile(self.to_be_aligned_elev, q=95)))
 
+        ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
         self.generate_plot(
             dem=self.reference_elev,
             title="Reference elevation",
@@ -97,6 +99,7 @@ class Accuracy(Workflows):
             title_dem_right="To-be-aligned elevation",
             vmin=vmin,
             vmax=vmax,
+            cbar_title=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
         )
         if ref_mask is not None or tba_mask is not None:
             if ref_mask is not None:
@@ -114,6 +117,7 @@ class Accuracy(Workflows):
                 title_dem_right="Masked terrain for to-be-aligned elevation",
                 vmin=vmin,
                 vmax=vmax,
+                cbar_title=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             )
 
         self.dico_to_show = [
@@ -200,27 +204,46 @@ class Accuracy(Workflows):
         elif sampling_grid == "to_be_aligned_elev":
             self.reference_elev = self.reference_elev.reproject(self.to_be_aligned_elev, silent=True)
 
+        if not self.reference_elev.get_stats("validcount") or not self.to_be_aligned_elev.get_stats("validcount"):
+            msg_error = "Reference and to-be-aligned elevation datasets do not overlap horizontally. "
+            if self.compute_coreg:
+                msg_error += (
+                    "All possible coregistration methods rely on elevation differencing, and thus "
+                    "produce only NaNs. "
+                )
+            else:
+                msg_error += "No differences can be calculated. "
+            msg_error += (
+                "If no large misalignment was expected, check the georeferencing of your data and re-set it "
+                "manually with 'set_crs()' or 'set_transform()'."
+            )
+            raise ValueError(msg_error)
+
         # Intersection
         logging.info("Computing intersection")
         coord_intersection = self.reference_elev.intersection(self.to_be_aligned_elev)
 
         if sampling_grid == "reference_elev":
             self.to_be_aligned_elev = self.to_be_aligned_elev.crop(coord_intersection)
+            tba_vunit = vertical_unit_symbol(self.to_be_aligned_elev.crs)
             self.generate_plot(
                 self.to_be_aligned_elev,
                 title="Preprocessed to-be-aligned elevation",
                 filename="preprocessed_to_be_aligned_elev_map",
                 vmin=vmin,
                 vmax=vmax,
+                cbar_title=f"Elevation ({tba_vunit})" if tba_vunit is not None else "Elevation",
             )
         else:
             self.reference_elev = self.reference_elev.crop(coord_intersection)
+            ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
             self.generate_plot(
                 self.reference_elev,
                 title="Preprocessed reference elevation",
                 filename="preprocessed_reference_elev_map",
                 vmin=vmin,
                 vmax=vmax,
+                cbar_title=f"Elevation ({ref_vunit})" if ref_vunit is not None else "Elevation",
             )
 
         if self.level > 1:
@@ -290,7 +313,8 @@ class Accuracy(Workflows):
             va="center",
         )
         plt.title("Histogram of elevation differences\nbefore and after coregistration")
-        plt.xlabel(f"Elevation differences ({self.reference_elev.crs.linear_units})")
+        ref_vunit = vertical_unit_symbol(self.reference_elev.crs)
+        plt.xlabel(f"Elevation differences ({ref_vunit})" if ref_vunit is not None else "Elevation differences")
         plt.ylabel("Count")
         plt.legend()
         plt.grid(False)
@@ -398,15 +422,6 @@ class Accuracy(Workflows):
                     vmax=vmax,
                     cmap="RdBu",
                 )
-            self.generate_plot(
-                self.diff,
-                title="Difference between To-be-align and Reference elevation",
-                filename="diff_elev_without_coreg_map",
-                vmin=vmin,
-                vmax=vmax,
-                cmap="RdBu",
-                cbar_title=f"Elevation differences ({self.diff.crs.linear_units})",
-            )
         if self.compute_coreg:
             stat_items = [
                 (self.reference_elev, "reference_elev", "Reference elevation", 2),

@@ -48,7 +48,9 @@ def assert_coreg_meta_equal(input1: Any, input2: Any) -> bool:
     """Short test function to check equality of coreg dictionary values."""
 
     # Different equality check based on input: number, callable, array, dataframe
-    if not isinstance(input1, type(input2)):
+    if input1 is None:
+        return input2 is None
+    elif not isinstance(input1, type(input2)):
         return False
     elif isinstance(input1, (str, float, int, np.floating, np.integer, tuple, list)) or callable(input1):
         return input1 == input2
@@ -137,7 +139,7 @@ class TestCoregClass:
         # Make sure these don't appear in the copy
         assert corr_copy.meta != corr.meta
 
-    @pytest.mark.parametrize("subsample", [10, 10000, 0.5, 1])
+    @pytest.mark.parametrize("subsample", [10, 1000, 0.5, 1])
     def test_get_subsample_on_valid_mask(self, subsample: float | int) -> None:
         """Test the subsampling function called by all subclasses"""
 
@@ -192,8 +194,8 @@ class TestCoregClass:
             fit_kwargs = {}
 
         # But can be overridden during fit
-        coreg_full.fit(**self.fit_params, subsample=10000, random_state=42, **fit_kwargs)
-        assert coreg_full.meta["inputs"]["random"]["subsample"] == 10000
+        coreg_full.fit(**self.fit_params, subsample=1000, random_state=42, **fit_kwargs)
+        assert coreg_full.meta["inputs"]["random"]["subsample"] == 1000
         # Check that the random state is properly set when subsampling explicitly or implicitly
         assert coreg_full.meta["inputs"]["random"]["random_state"] == 42
 
@@ -214,11 +216,11 @@ class TestCoregClass:
         """Test that the subsample argument works as intended for pipelines"""
 
         # Check definition during instantiation
-        pipe = coreg.VerticalShift(subsample=200) + coreg.Deramp(subsample=5000)
+        pipe = coreg.VerticalShift(subsample=200) + coreg.Deramp(subsample=1000)
 
         # Check the arguments are properly defined
         assert pipe.pipeline[0].meta["inputs"]["random"]["subsample"] == 200
-        assert pipe.pipeline[1].meta["inputs"]["random"]["subsample"] == 5000
+        assert pipe.pipeline[1].meta["inputs"]["random"]["subsample"] == 1000
 
         # Check definition during fit
         pipe = coreg.VerticalShift() + coreg.Deramp()
@@ -387,13 +389,11 @@ class TestCoregClass:
             fit_kwargs = {}
 
         # Perform fit, then apply
-        coreg_fit_then_apply.fit(**self.fit_params, subsample=10000, random_state=42, **fit_kwargs)
+        coreg_fit_then_apply.fit(**self.fit_params, **fit_kwargs)
         aligned_then = coreg_fit_then_apply.apply(elev=self.fit_params["to_be_aligned_elev"])
 
         # Perform fit and apply
-        aligned_and = coreg_fit_and_apply.fit_and_apply(
-            **self.fit_params, subsample=10000, random_state=42, fit_kwargs=fit_kwargs
-        )
+        aligned_and = coreg_fit_and_apply.fit_and_apply(**self.fit_params, fit_kwargs=fit_kwargs)
 
         # Check outputs are the same: aligned raster, and metadata keys and values
 
@@ -415,11 +415,11 @@ class TestCoregClass:
         coreg_fit_and_apply = coreg.NuthKaab() + coreg.Deramp()
 
         # Perform fit, then apply
-        coreg_fit_then_apply.fit(**self.fit_params, subsample=10000, random_state=42)
+        coreg_fit_then_apply.fit(**self.fit_params)
         aligned_then = coreg_fit_then_apply.apply(elev=self.fit_params["to_be_aligned_elev"])
 
         # Perform fit and apply
-        aligned_and = coreg_fit_and_apply.fit_and_apply(**self.fit_params, subsample=10000, random_state=42)
+        aligned_and = coreg_fit_and_apply.fit_and_apply(**self.fit_params)
 
         assert aligned_and.raster_equal(aligned_then, warn_failure_reason=True)
         assert list(coreg_fit_and_apply.pipeline[0].meta.keys()) == list(coreg_fit_then_apply.pipeline[0].meta.keys())
@@ -701,7 +701,7 @@ class TestCoregPipeline:
 
         # Create a pipeline from two coreg methods.
         pipeline = coreg.CoregPipeline([coreg.VerticalShift(), coreg.NuthKaab()])
-        pipeline.fit(**self.fit_params, subsample=5000, random_state=42)
+        pipeline.fit(**self.fit_params)
 
         aligned_dem, _ = pipeline.apply(self.tba.data, transform=self.ref.transform, crs=self.ref.crs)
 
@@ -734,7 +734,7 @@ class TestCoregPipeline:
 
         # Create a pipeline from one affine and one biascorr methods.
         pipeline = coreg.CoregPipeline([coreg1(), coreg2()])
-        pipeline.fit(**self.fit_params, subsample=5000, random_state=42)
+        pipeline.fit(**self.fit_params)
 
         aligned_dem, _ = pipeline.apply(self.tba.data, transform=self.ref.transform, crs=self.ref.crs)
         assert aligned_dem.shape == self.ref.data.squeeze().shape
@@ -755,7 +755,7 @@ class TestCoregPipeline:
         # Create a pipeline from one affine and one biascorr methods
         pipeline = coreg.CoregPipeline([coreg1(), coreg.BiasCorr(**coreg2_init_kwargs)])  # type: ignore
         bias_vars = {"slope": xdem.terrain.slope(self.ref), "aspect": xdem.terrain.aspect(self.ref)}
-        pipeline.fit(**self.fit_params, bias_vars=bias_vars, subsample=5000, random_state=42)
+        pipeline.fit(**self.fit_params, bias_vars=bias_vars)
 
         aligned_dem, _ = pipeline.apply(
             self.tba.data, transform=self.ref.transform, crs=self.ref.crs, bias_vars=bias_vars
@@ -810,7 +810,7 @@ class TestCoregPipeline:
     def test_pipeline_pts(self) -> None:
 
         pipeline = coreg.NuthKaab() + coreg.DhMinimize()
-        ref_points = self.ref.to_pointcloud(subsample=5000, random_state=42)
+        ref_points = self.ref.to_pointcloud()
 
         # Check that this runs without error
         pipeline.fit(reference_elev=ref_points, to_be_aligned_elev=self.tba)
@@ -981,9 +981,14 @@ class TestAffineManipulation:
         # Interpolate transformed DEM at coordinates of the transformed point cloud
         # Because the raster created as a constant slope (plan-like), the interpolated values should be very close
         z_points = trans_dem.interp_points(
-            points=(trans_epc.geometry.x.values, trans_epc.geometry.y.values), as_array=True
+            points=(trans_epc.geometry.x.values, trans_epc.geometry.y.values),
+            as_array=True,
+            nodata_propagation="propagate",
         )
-        valids = np.isfinite(z_points)
+        # Exclude partial interpolation windows, where edge clamping cannot reproduce an inclined plane
+        cols, rows = ~trans_dem.transform * (trans_epc.geometry.x.values, trans_epc.geometry.y.values)
+        interior = (cols >= 1) & (cols <= trans_dem.width - 2) & (rows >= 1) & (rows <= trans_dem.height - 2)
+        valids = np.isfinite(z_points) & interior
         assert np.count_nonzero(valids) > 0
         assert np.allclose(z_points[valids], trans_epc.z.values[valids], rtol=10e-5)
 
@@ -1043,10 +1048,14 @@ class TestAffineManipulation:
 
         # Interpolate transformed DEM at coordinates of the transformed point cloud, and check values are very close
         z_points_it = trans_dem_it.interp_points(
-            points=(trans_epc.geometry.x.values, trans_epc.geometry.y.values), as_array=True
+            points=(trans_epc.geometry.x.values, trans_epc.geometry.y.values),
+            as_array=True,
+            nodata_propagation="propagate",
         )
         z_points_gd = trans_dem_gd.interp_points(
-            points=(trans_epc.geometry.x.values, trans_epc.geometry.y.values), as_array=True
+            points=(trans_epc.geometry.x.values, trans_epc.geometry.y.values),
+            as_array=True,
+            nodata_propagation="propagate",
         )
 
         valids = np.logical_and(np.isfinite(z_points_it), np.isfinite(z_points_gd))
@@ -1075,6 +1084,7 @@ class TestAffineManipulation:
             test_str: str
             test_float: float
             test_int: int
+            test_ndarray: np.ndarray  # type: ignore
             test_NDArrayf: NDArrayf
             test_Generator: np.random.Generator
             test_literal: Literal["point-to-point", "point-to-plane"]
@@ -1089,9 +1099,10 @@ class TestAffineManipulation:
 
         test_values: dict[str, Any] = {
             "test_str": [["abc"], [2, None]],
-            "test_float": [[0.1], ["a", 1]],
+            "test_float": [[0.1, np.float64(1.0)], ["a", 1]],
             "test_int": [[2], ["abc", 1.5]],
-            "test_NDArrayf": [[np.array([1.0, 1.0])], ["a", 1, 0.1]],
+            "test_ndarray": [[[1, 2, 3.0], np.array([1.0, 2.0])], ["a", 1, [1.0, "a"]]],
+            "test_NDArrayf": [[[1.0, 2.0, 3.0], np.array([1.0, 2.0])], ["a", 1, [1.0, "a"]]],
             "test_Generator": [[np.random.default_rng(12345)], ["1"]],
             "test_literal": [["point-to-point"], ["a", 2, None]],
             "test_list": [[["abc", "abc"]], ["a", 1, [1, 2]]],
@@ -1103,6 +1114,7 @@ class TestAffineManipulation:
             "test_union": [[1, "a"], [1.5]],
             "test_union_none": [[1, None], [1.5]],
         }
+
         for key, values in test_values.items():
             for value in values[0]:
                 assert validate_typed_dict({key: value}, Test_Dict)

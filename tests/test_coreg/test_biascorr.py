@@ -41,8 +41,8 @@ class TestBiasCorr:
     fit_args_rst_rst = dict(reference_elev=ref, to_be_aligned_elev=tba, inlier_mask=inlier_mask)
 
     # Convert DEMs to points with a bit of subsampling for speed-up
-    tba_pts = tba.to_pointcloud(data_column_name="z", subsample=50000, random_state=42)
-    ref_pts = ref.to_pointcloud(data_column_name="z", subsample=50000, random_state=42)
+    tba_pts = tba.to_pointcloud(data_column_name="z")
+    ref_pts = ref.to_pointcloud(data_column_name="z")
 
     # Raster-Point
     fit_args_rst_pts = dict(reference_elev=ref, to_be_aligned_elev=tba_pts, inlier_mask=inlier_mask)
@@ -101,6 +101,11 @@ class TestBiasCorr:
         bcorr5 = biascorr.BiasCorr(bias_var_names=np.array(["slope", "ncc"]))
         assert bcorr5.meta["inputs"]["fitorbin"]["bias_var_names"] == ["slope", "ncc"]
 
+        # Check that a custom non-linear function records the optimizer selected by Coreg
+        bcorr6 = biascorr.BiasCorr(fit_func=lambda x, a: a * x)
+        assert bcorr6.meta["inputs"]["fitorbin"]["fit_optimizer"] is scipy.optimize.curve_fit
+        assert "curve_fit" in bcorr6.info(as_str=True)
+
     def test_biascorr__errors(self) -> None:
         """Test the errors that should be raised by BiasCorr."""
 
@@ -120,9 +125,22 @@ class TestBiasCorr:
 
         # For fit optimizer
         with pytest.raises(
-            TypeError, match=re.escape("Argument `fit_optimizer` must be a function (callable), " "got <class 'int'>.")
+            TypeError,
+            match=re.escape(
+                "Argument `fit_optimizer` must be a function (callable), 'ols' or None, got <class 'int'>."
+            ),
         ):
             biascorr.BiasCorr(fit_optimizer=3)  # type: ignore
+
+        # OLS requires a design matrix supplied by a linear method such as Deramp
+        with pytest.raises(ValueError, match="The 'ols' fit optimizer requires a design matrix function."):
+            bcorr_ols = biascorr.BiasCorr(fit_func=lambda x, a: a * x, fit_optimizer="ols")
+            bcorr_ols.fit(
+                **self.fit_args_rst_rst,
+                bias_vars={"elevation": self.ref},
+                subsample=100,
+                random_state=42,
+            )
 
         # For bin sizes
         with pytest.raises(
@@ -291,7 +309,7 @@ class TestBiasCorr:
         elev_fit_args.update({"bias_vars": bias_vars_dict})
 
         # Run with input parameter, and using only 100 subsamples for speed
-        bcorr.fit(**elev_fit_args, subsample=10000, random_state=42)
+        bcorr.fit(**elev_fit_args)
 
         # Check that variable names are defined during fit
         assert bcorr.meta["inputs"]["fitorbin"]["bias_var_names"] == ["elevation", "slope"]
@@ -438,7 +456,7 @@ class TestBiasCorr:
             plt.show()
 
             dirbias = biascorr.DirectionalBias(angle=angle, fit_or_bin="bin", bin_sizes=10000)
-            dirbias.fit(reference_elev=self.ref, to_be_aligned_elev=bias_dem, subsample=10000, random_state=42)
+            dirbias.fit(reference_elev=self.ref, to_be_aligned_elev=bias_dem)
             xdem.spatialstats.plot_1d_binning(
                 df=dirbias.meta["outputs"]["fitorbin"]["bin_dataframe"],
                 var_name="angle",
@@ -463,14 +481,12 @@ class TestBiasCorr:
         elev_fit_args = fit_args.copy()
         if isinstance(elev_fit_args["to_be_aligned_elev"], gpd.GeoDataFrame):
             # Need a higher sample size to get the coefficients right here
-            bias_elev = bias_dem.to_pointcloud(data_column_name="z", subsample=50000, random_state=42).ds
+            bias_elev = bias_dem.to_pointcloud(data_column_name="z").ds
         else:
             bias_elev = bias_dem
         dirbias.fit(
             elev_fit_args["reference_elev"],
             to_be_aligned_elev=bias_elev,
-            subsample=40000,
-            random_state=42,
             bounds_amp_wave_phase=bounds,
             niter=2,
         )
@@ -493,12 +509,39 @@ class TestBiasCorr:
 
         assert deramp.meta["inputs"]["fitorbin"]["fit_or_bin"] == "fit"
         assert deramp.meta["inputs"]["fitorbin"]["fit_func"] == polynomial_2d
-        assert deramp.meta["inputs"]["fitorbin"]["fit_optimizer"] == scipy.optimize.curve_fit
+        assert deramp.meta["inputs"]["fitorbin"]["fit_optimizer"] == "ols"
+        assert "ols" in deramp.info(as_str=True)
         assert deramp.meta["inputs"]["specific"]["poly_order"] == 2
         assert deramp._needs_vars is False
 
         # Check that variable names are defined during instantiation
         assert deramp.meta["inputs"]["fitorbin"]["bias_var_names"] == ["xx", "yy"]
+
+        # A custom model keeps the non-linear default because the polynomial design matrix no longer applies
+        deramp_custom = biascorr.Deramp(fit_func=lambda xy, *params: polynomial_2d(xy, *params))
+        assert deramp_custom.meta["inputs"]["fitorbin"]["fit_optimizer"] is scipy.optimize.curve_fit
+
+    @pytest.mark.parametrize("fit_args", all_fit_args)
+    def test_deramp__fit_optimizer_override(self, fit_args: Any) -> None:
+        """Checks that a user optimizer overrides OLS and produces a similar polynomial fit."""
+        fit_args_rr = fit_args.copy()
+
+        # 1/ Fit the polynomial with the default linear optimizer
+        deramp_ols = biascorr.Deramp(poly_order=2)
+        assert deramp_ols.meta["inputs"]["fitorbin"]["fit_optimizer"] == "ols"
+        deramp_ols.fit(**fit_args_rr, subsample=2000, random_state=42)
+
+        # 2/ Fit the same polynomial with an explicit curve_fit optimizer
+        deramp_cf = biascorr.Deramp(poly_order=2, fit_optimizer=scipy.optimize.curve_fit)
+        assert deramp_cf.meta["inputs"]["fitorbin"]["fit_optimizer"] is scipy.optimize.curve_fit
+        deramp_cf.fit(**fit_args_rr, subsample=2000, random_state=42)
+
+        # 3/ Check that both solvers return finite, numerically close coefficients
+        params_ols = deramp_ols.meta["outputs"]["fitorbin"]["fit_params"]
+        params_cf = deramp_cf.meta["outputs"]["fitorbin"]["fit_params"]
+        assert np.all(np.isfinite(params_ols))
+        assert np.all(np.isfinite(params_cf))
+        assert np.allclose(params_ols, params_cf, atol=0.5)
 
     @pytest.mark.parametrize("fit_args", all_fit_args)
     @pytest.mark.parametrize("order", [1, 2, 3, 4])
@@ -523,10 +566,10 @@ class TestBiasCorr:
         deramp = biascorr.Deramp(poly_order=order)
         elev_fit_args = fit_args.copy()
         if isinstance(elev_fit_args["to_be_aligned_elev"], gpd.GeoDataFrame):
-            bias_elev = bias_dem.to_pointcloud(data_column_name="z", subsample=30000, random_state=42).ds
+            bias_elev = bias_dem.to_pointcloud(data_column_name="z").ds
         else:
             bias_elev = bias_dem
-        deramp.fit(elev_fit_args["reference_elev"], to_be_aligned_elev=bias_elev, subsample=20000, random_state=42)
+        deramp.fit(elev_fit_args["reference_elev"], to_be_aligned_elev=bias_elev)
 
         # Check high-order fit parameters are the same within 10%
         fit_params = deramp.meta["outputs"]["fitorbin"]["fit_params"]
@@ -581,14 +624,12 @@ class TestBiasCorr:
         )
         elev_fit_args = fit_args.copy()
         if isinstance(elev_fit_args["to_be_aligned_elev"], gpd.GeoDataFrame):
-            bias_elev = bias_dem.to_pointcloud(data_column_name="z", subsample=20000, random_state=42).ds
+            bias_elev = bias_dem.to_pointcloud(data_column_name="z").ds
         else:
             bias_elev = bias_dem
         tb.fit(
             elev_fit_args["reference_elev"],
             to_be_aligned_elev=bias_elev,
-            subsample=10000,
-            random_state=42,
             bias_vars={"max_curvature": maxc},
         )
 

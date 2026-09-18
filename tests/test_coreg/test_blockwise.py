@@ -3,6 +3,7 @@
 # mypy: disable-error-code=no-untyped-def
 from __future__ import annotations
 
+import sys
 import warnings
 from pathlib import Path
 
@@ -11,8 +12,7 @@ import numpy as np
 import pytest
 from geoutils import Raster, Vector
 from geoutils.interface.gridding import _grid_pointcloud
-from geoutils.raster import ClusterGenerator
-from geoutils.raster.distributed_computing import MultiprocConfig
+from geoutils.multiproc import ClusterGenerator, MultiprocConfig
 
 import xdem
 from xdem.coreg import BlockwiseCoreg, Coreg
@@ -36,7 +36,7 @@ def step() -> Coreg:
 
 @pytest.fixture
 def mp_config(tmp_path: Path) -> MultiprocConfig:
-    return MultiprocConfig(chunk_size=25, outfile=tmp_path / "aligned_dem.tif")
+    return MultiprocConfig(chunks=25, outfile=tmp_path / "aligned_dem.tif")
 
 
 @pytest.fixture
@@ -189,7 +189,7 @@ class TestBlockwiseCoreg:
             tba_crop = tba.icrop(bbox=(0, 0, block_size, block_size))
             tba = tba_crop.reproject(tba)
 
-        config_mc = MultiprocConfig(chunk_size=block_size, outfile=tmp_path / "test.tif")
+        config_mc = MultiprocConfig(chunks=block_size, outfile=tmp_path / "test.tif")
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
         blockwise_coreg.fit(ref, tba, mask)
         blockwise_coreg.apply(tba)
@@ -204,6 +204,10 @@ class TestBlockwiseCoreg:
 
         assert np.nanpercentile(diff, 90) < 10
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Pending GeoUtils Windows cluster fix; remove after new GeoUtils release.",
+    )
     @pytest.mark.parametrize(
         "step_coreg",
         [
@@ -219,13 +223,17 @@ class TestBlockwiseCoreg:
         """
 
         config_mc = MultiprocConfig(
-            chunk_size=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
+            chunks=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
         )
         with pytest.raises(
             ValueError, match="The blockwise coregistration only supports affine coregistration methods."
         ):
             _ = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Pending GeoUtils Windows cluster fix; remove after new GeoUtils release.",
+    )
     @pytest.mark.parametrize(
         "step_coreg",
         [
@@ -244,7 +252,7 @@ class TestBlockwiseCoreg:
         """
 
         config_mc = MultiprocConfig(
-            chunk_size=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
+            chunks=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
         )
         with pytest.raises(
             ValueError,
@@ -253,6 +261,10 @@ class TestBlockwiseCoreg:
         ):
             _ = xdem.coreg.BlockwiseCoreg(step=step_coreg, mp_config=config_mc, block_size_fit=block_size)
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Pending GeoUtils Windows cluster fix; remove after new GeoUtils release.",
+    )
     @pytest.mark.parametrize("block_size", [32])
     def test_blockwise_coreg_pipeline_with_multiprocessing(self, step, example_data, tmp_path, block_size):
         """Test end-to-end blockwise coregistration in multiprocessing and validate output."""
@@ -264,7 +276,7 @@ class TestBlockwiseCoreg:
             tba = tba_crop.reproject(tba)
 
         config_mc = MultiprocConfig(
-            chunk_size=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
+            chunks=block_size, outfile=tmp_path / "test.tif", cluster=ClusterGenerator("multi", nb_workers=4)
         )
         blockwise_coreg = xdem.coreg.BlockwiseCoreg(step=step, mp_config=config_mc, block_size_fit=block_size)
         blockwise_coreg.fit(ref, tba, mask)
