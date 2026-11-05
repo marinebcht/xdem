@@ -44,9 +44,18 @@ def test_init_diff_analysis(get_accuracy_inputs_test):
     """
     workflows = Accuracy(get_accuracy_inputs_test)
     workflows.run()
+    inputs = get_accuracy_inputs_test["inputs"]
 
-    dem = xdem.DEM(xdem.examples.get_path_test("longyearbyen_tba_dem"))
-    np.testing.assert_array_equal(workflows.to_be_aligned_elev.get_mask(), dem.get_mask())
+    # dem = xdem.DEM(inputs["reference_elev"]["path_to_elev"])
+    # mask = gu.Vector(inputs["reference_elev"]["path_to_mask"])
+    # inlier_mask = ~mask.create_mask(dem)
+
+    # np.testing.assert_array_equal(workflows.reference_elev.dem.data, dem.get_nanarray())
+    # np.testing.assert_array_equal(np.isnan(workflows.reference_elev.dem.data), inlier_mask)
+
+    dem = xdem.DEM(inputs["to_be_align_elev"]["path_to_elev"])
+    np.testing.assert_array_equal(workflows.to_be_aligned_elev.dem.data, dem.get_nanarray())
+    np.testing.assert_array_equal(np.isnan(workflows.to_be_aligned_elev.dem.data), dem.get_mask())
 
 
 def test__get_reference_elevation(get_accuracy_inputs_test, tmp_path, caplog, assert_and_allow_log):

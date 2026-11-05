@@ -101,16 +101,12 @@ class Accuracy(Workflows):
         )
         if ref_mask is not None or tba_mask is not None:
             if ref_mask is not None:
-                print("ref", self.reference_elev.dem.get_stats("Valid count"))
                 inlier_mask_crop = ref_mask.reproject(self.reference_elev).crop(self.reference_elev)
                 self.reference_elev.data = np.where(inlier_mask_crop.data, self.reference_elev.data, np.nan)
-                print("ref", self.reference_elev.dem.get_stats("Valid count"))
 
             if tba_mask is not None:
-                print("tba", self.to_be_aligned_elev.dem.get_stats("Valid count"))
                 inlier_mask_crop = tba_mask.reproject(self.to_be_aligned_elev).crop(self.to_be_aligned_elev)
                 self.to_be_aligned_elev.data = np.where(inlier_mask_crop.data, self.to_be_aligned_elev.data, np.nan)
-                print("tba", self.to_be_aligned_elev.dem.get_stats("Valid count"))
             self.generate_plot(
                 self.reference_elev,
                 title="Masked terrain for reference elevation",
@@ -186,7 +182,7 @@ class Accuracy(Workflows):
         :param vmin: to plot elevation data with the same scale
         :param vmax: to plot elevation data with the same scale
         """
-        print("_prepare_datas")
+
         sampling_grid = self.config["inputs"]["sampling_grid"]
 
         # Reprojection
@@ -206,8 +202,6 @@ class Accuracy(Workflows):
         elif sampling_grid == "to_be_aligned_elev":
             self.reference_elev = self.reference_elev.dem.reproject(self.to_be_aligned_elev, silent=True)
 
-        print(self.reference_elev.dem.get_stats("validcount"))
-        print(self.to_be_aligned_elev.dem.get_stats("validcount"))
         if not self.reference_elev.dem.get_stats("validcount") or not self.to_be_aligned_elev.dem.get_stats(
             "validcount"
         ):
@@ -335,11 +329,9 @@ class Accuracy(Workflows):
         vmin, vmax = self._load_data()
 
         # Reprojection step
-        print("sampling_grid", "sampling_grid" in self.config["inputs"])
         if "sampling_grid" in self.config["inputs"]:
             self._prepare_datas(vmin, vmax)
 
-        print("compute_coreg", self.compute_coreg)
         if self.compute_coreg:
             # Coregistration step
             aligned_elev = self._compute_coregistration()
@@ -405,10 +397,7 @@ class Accuracy(Workflows):
                     cmap="RdBu",
                 )
         else:
-            print(self.to_be_aligned_elev.dem.shape)
-            print(self.reference_elev.dem.shape)
             self.diff = self.to_be_aligned_elev - self.reference_elev
-            print(self.diff.dem.shape)
 
             self.stats = self.diff.dem.get_stats(stats_keys)
             vmin, vmax = -(self.stats["median"] + 3 * self.stats["nmad"]), self.stats["median"] + 3 * self.stats["nmad"]

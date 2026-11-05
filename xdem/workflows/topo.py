@@ -241,7 +241,7 @@ class Topo(Workflows):
 
             # if only one attribute, put it in a list
             if len(self.list_attributes) == 1:
-                attributes = [attributes]
+                attributes = [attributes]  # type: ignore
 
         else:
             attributes = []

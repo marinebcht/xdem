@@ -289,26 +289,29 @@ class Workflows(ABC):
 
         # Raster data
         data = dem.dem.data
-        print(data)
-        print(type(data))
         ny, nx = data.shape
-        print(nx, ny)
 
         # Initial min/max for mean profiles
-        profile_cols = data.mean(axis=0)
+        profile_cols = np.nanmean(data, axis=0)
         profile_cols_stats = [profile_cols.min(), profile_cols.max()]
-        profile_rows = data.mean(axis=1)
+        profile_rows = np.nanmean(data, axis=1)
         profile_rows_stats = [profile_rows.min(), profile_rows.max()]
 
         # Keep profiles with at least more than 50% of valid values
         nb_valid_rows = np.sum(~np.isnan(data), axis=1)  # todo
         nb_valid_cols = np.sum(~np.isnan(data), axis=0)
-        min_valid_rows, min_valid_cols = data.shape[1] / 2.0, data.shape[0] / 2.0
+        # min_valid_rows, min_valid_cols = data.shape[1] / 2.0, data.shape[0] / 2.0
 
         # Update profiles values according to valid values
-        profile_rows = np.ma.masked_where(nb_valid_rows < min_valid_rows, data.mean(axis=1))
-        profile_cols = np.ma.masked_where(nb_valid_cols < min_valid_cols, data.mean(axis=0))
+        profile_rows = np.ma.masked_where(
+            nb_valid_rows < data.shape[1] / 2,
+            profile_rows,
+        )
 
+        profile_cols = np.ma.masked_where(
+            nb_valid_cols < data.shape[0] / 2,
+            profile_cols,
+        )
         # Force figsize with the same size as generate_plot function
         size_font = 6
         plt.rc("font", size=size_font)
