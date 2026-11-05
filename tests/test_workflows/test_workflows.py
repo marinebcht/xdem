@@ -342,8 +342,8 @@ def test_load_dem_alias():
     assert isinstance(output_dem, xr.DataArray)
     assert not output_dem._in_memory
 
-    assert output_dem.rst.raster_equal(xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"])).rst)
-    assert inlier_mask == ~gu.Vector(mask_path).create_mask(output_dem.rst)
+    assert output_dem.dem.raster_equal(xdem.open_dem(xdem.examples.get_path(config_dem["path_to_elev"])).rst)
+    assert inlier_mask.raster_equal(~gu.Vector(mask_path).create_mask(output_dem))
     assert mask_path == xdem.examples.get_path("longyearbyen_glacier_outlines")
 
 
